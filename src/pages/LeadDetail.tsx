@@ -17,12 +17,22 @@ const Field = ({ label, value, mono = false }: { label: string; value?: string |
   </div>
 );
 
-const BigScore = ({ score }: { score?: number | null }) => {
+const scoreFactors = (lead: LeadWithCapture) => [
+  { label: "SIREN identifié", weight: 0.4, hit: Boolean(lead.siren) },
+  { label: "Téléphone extrait", weight: 0.3, hit: Boolean(lead.telephone) },
+  { label: "Nom commercial / raison sociale", weight: 0.2, hit: Boolean(lead.nom_commercial || lead.raison_sociale) },
+  { label: "Site web détecté", weight: 0.2, hit: Boolean(lead.site_web) },
+  { label: "Ville ou département cohérent", weight: 0.1, hit: Boolean(lead.ville || lead.departement || lead.captures?.exif_city) },
+  { label: "NAF disponible", weight: 0.1, hit: Boolean(lead.code_naf) },
+  { label: "GPS / contexte terrain", weight: 0.05, hit: Boolean(lead.captures?.exif_lat && lead.captures?.exif_lng) },
+];
+
+const BigScore = ({ score, onOpen }: { score?: number | null; onOpen: () => void }) => {
   const pct = Math.round((score ?? 0) * 100);
   const label = pct >= 70 ? "Score élevé" : pct >= 40 ? "Score moyen" : "Score faible";
   const color = pct >= 70 ? "var(--c-confirm)" : pct >= 40 ? "var(--c-warn)" : "var(--c-alert)";
   return (
-    <div className="snap-panel p-6">
+    <button onClick={onOpen} className="snap-panel block w-full p-6 text-left transition hover:border-brick/60">
       <div className="flex items-baseline gap-1">
         <div className="font-editorial text-7xl font-light leading-none tracking-[-0.04em]">{pct}</div>
         <div className="font-editorial text-2xl italic text-muted">/100</div>
@@ -36,7 +46,41 @@ const BigScore = ({ score }: { score?: number | null }) => {
       </div>
       <div className="mt-4 flex justify-between border-t pt-3 text-xs text-muted" style={{ borderColor: "var(--c-line)" }}>
         <span>Sirene · Pappers · Vision</span>
-        <span>Mis à jour</span>
+        <span>Voir justification</span>
+      </div>
+    </button>
+  );
+};
+
+const ScoreDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () => void }) => {
+  const factors = scoreFactors(lead);
+  const pct = Math.round((lead.confidence_score ?? 0) * 100);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4" onClick={onClose}>
+      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <div className="snap-label text-brick">Justification du scoring</div>
+            <h2 className="snap-title mt-1 text-4xl">{pct}/100</h2>
+          </div>
+          <button onClick={onClose} className="snap-button-secondary px-3 py-1.5 text-sm">Fermer</button>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          Score calculé à partir des signaux disponibles après extraction photo, Sirene et Pappers. Les poids affichés suivent la grille de confiance du cahier des charges.
+        </p>
+        <div className="space-y-2">
+          {factors.map((factor) => (
+            <div key={factor.label} className="flex items-center gap-3 rounded border p-3" style={{ borderColor: "var(--c-line)", background: factor.hit ? "var(--c-panel)" : "var(--c-panelAlt)" }}>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: factor.hit ? "var(--c-confirm)" : "var(--c-inkFaint)" }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{factor.label}</div>
+                <div className="text-xs text-muted">{factor.hit ? "Signal présent" : "Signal absent ou non confirmé"}</div>
+              </div>
+              <div className="mono text-xs text-muted">+{factor.weight.toFixed(2)}</div>
+            </div>
+          ))}
+        </div>
+        {lead.source_matching && <div className="mt-4 text-sm text-muted">Source matching : {lead.source_matching}</div>}
       </div>
     </div>
   );
@@ -48,6 +92,7 @@ export default function LeadDetail() {
   const [confreres, setConfreres] = useState<LeadWithCapture[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
   const toast = useToast();
 
   const load = async () => {
@@ -129,7 +174,7 @@ export default function LeadDetail() {
             <Field label="Site web" value={lead.site_web} mono />
           </div>
         </div>
-        <BigScore score={lead.confidence_score} />
+        <BigScore score={lead.confidence_score} onOpen={() => setScoreOpen(true)} />
       </header>
 
       <section className="snap-panel mb-6 grid overflow-hidden sm:grid-cols-2 lg:grid-cols-6">
@@ -141,28 +186,14 @@ export default function LeadDetail() {
         <div className="p-4"><Field label="Statut" value={lead.status} /></div>
       </section>
 
-      <section className="mb-7 grid gap-6 lg:grid-cols-[440px_1fr]">
+      <section className="mb-7 grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4">
-          <div className="flex items-end justify-between">
-            <h2 className="snap-title text-3xl">Photo source</h2>
-            <span className="snap-label">Extraction automatique</span>
-          </div>
-          <div className="relative h-80 overflow-hidden rounded-lg border" style={{ background: "var(--c-panelAlt)", borderColor: "var(--c-line)" }}>
-            <div className="absolute inset-0 opacity-40" style={{ background: "radial-gradient(ellipse 90% 60% at 50% 40%, rgba(194,84,45,.20), transparent 70%)" }} />
-            <div className="absolute left-[10%] right-[8%] top-[34%] bottom-[16%] rounded-md bg-ink/20" />
-            <div className="absolute left-[18%] top-[22%] h-[52%] w-[64%] rounded border-2 border-brick/80 bg-brick/10" />
-            <div className="absolute left-3 top-3 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold backdrop-blur" style={{ borderColor: "var(--c-line)" }}>
-              Champs extraits
-            </div>
-            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-gradient-to-t from-paper/90 to-transparent px-4 py-3 text-xs text-slate">
-              <span>{lead.captures?.photo_path || "Photo terrain"}</span>
-              <span>{captured}</span>
-            </div>
-          </div>
           <div className="snap-panel p-4">
             <div className="mb-3 flex justify-between">
               <span className="text-sm font-semibold">Champs extraits</span>
-              <ConfidenceBadge score={lead.confidence_score} />
+              <button onClick={() => setScoreOpen(true)} className="text-left">
+                <ConfidenceBadge score={lead.confidence_score} />
+              </button>
             </div>
             <div className="space-y-2">
               <Field label="Nom commercial" value={lead.nom_commercial} />
@@ -238,6 +269,7 @@ export default function LeadDetail() {
           {lead.site_web && <a href={lead.site_web.startsWith("http") ? lead.site_web : `https://${lead.site_web}`} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}
         </div>
       </section>
+      {scoreOpen && <ScoreDetails lead={lead} onClose={() => setScoreOpen(false)} />}
     </div>
   );
 }
