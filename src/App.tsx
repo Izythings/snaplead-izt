@@ -9,6 +9,7 @@ import LeadDetail from "./pages/LeadDetail";
 import PlanAttaque from "./pages/PlanAttaque";
 import SettingsPage from "./pages/Settings";
 import Auth from "./pages/Auth";
+import { ToastProvider } from "./components/StatusToast";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: Home },
@@ -94,5 +95,9 @@ export default function App() {
   const { session, loading } = useSession();
   if (!skipAuth && loading) return <div className="grid min-h-screen place-items-center bg-paper">Chargement</div>;
   if (!skipAuth && !session) return <Auth />;
-  return <Layout />;
+  return (
+    <ToastProvider>
+      <Layout />
+    </ToastProvider>
+  );
 }

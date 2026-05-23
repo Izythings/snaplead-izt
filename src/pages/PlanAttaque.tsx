@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ScriptDisplay from "../components/ScriptDisplay";
+import { useToast } from "../components/StatusToast";
 import { useLeads } from "../hooks/useLeads";
 import { usePlan } from "../hooks/usePlan";
 import { downloadCsv, leadsToCsv } from "../lib/csv";
@@ -10,14 +11,23 @@ export default function PlanAttaque() {
   const { plan, generate } = usePlan();
   const { leads } = useLeads();
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const content = plan?.contenu;
 
   const pushAll = async () => {
     setBusy(true);
+    let ok = 0;
+    let ko = 0;
     for (const lead of leads.filter((item) => item.status === "actionable")) {
-      await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
-      await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
+      const { error } = await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
+      if (error) ko += 1;
+      else {
+        ok += 1;
+        await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
+      }
     }
+    if (ko > 0) toast.error("Push bulk terminé avec erreurs", `${ok} OK · ${ko} KO`);
+    else toast.success(`${ok} lead(s) poussé(s) au CRM`);
     setBusy(false);
   };
 
@@ -29,7 +39,17 @@ export default function PlanAttaque() {
           <h1 className="text-3xl font-semibold">Plan d'attaque</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button disabled={busy} onClick={async () => { setBusy(true); await generate(); setBusy(false); }} className="rounded bg-brick px-4 py-2 font-medium text-white disabled:opacity-50">
+          <button disabled={busy} onClick={async () => {
+            setBusy(true);
+            try {
+              await generate();
+              toast.success("Plan généré");
+            } catch (error) {
+              toast.error("Génération du plan échouée", error);
+            } finally {
+              setBusy(false);
+            }
+          }} className="rounded bg-brick px-4 py-2 font-medium text-white disabled:opacity-50">
             Générer
           </button>
           <button onClick={() => downloadCsv("leadsnap-plan.csv", leadsToCsv(leads))} className="rounded border border-ink/15 px-4 py-2 font-medium">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../components/StatusToast";
 import { supabase } from "../lib/supabase";
 import type { WebhookConfig, WebhookLog, WebhookTrigger } from "../lib/types";
 
@@ -15,6 +16,7 @@ export default function SettingsPage() {
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [form, setForm] = useState(emptyConfig);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   const load = async () => {
     const [{ data: configData }, { data: logData }] = await Promise.all([
@@ -43,23 +45,33 @@ export default function SettingsPage() {
         user_id: userData.user?.id,
       };
       const { error: insertError } = await supabase.from("webhook_configs").insert(payload);
-      if (insertError) setError(insertError.message);
+      if (insertError) {
+        setError(insertError.message);
+        toast.error("Ajout webhook échoué", insertError.message);
+      }
       else {
         setForm(emptyConfig);
+        toast.success("Webhook ajouté");
         await load();
       }
     } catch {
       setError("JSON invalide dans headers ou field mapping.");
+      toast.error("Webhook invalide", "JSON invalide dans headers ou field mapping");
     }
   };
 
   const remove = async (id: string) => {
-    await supabase.from("webhook_configs").delete().eq("id", id);
+    const { error } = await supabase.from("webhook_configs").delete().eq("id", id);
+    if (error) toast.error("Suppression webhook échouée", error.message);
+    else toast.success("Webhook supprimé");
     await load();
   };
 
   const test = async (configId: string) => {
-    await supabase.functions.invoke("webhook-push", { body: { config_id: configId, test: true, trigger: "manual" } });
+    const { data, error } = await supabase.functions.invoke("webhook-push", { body: { config_id: configId, test: true, trigger: "manual" } });
+    if (error) toast.error("Test webhook échoué", error.message);
+    else if (data?.results?.some((result: { success: boolean }) => !result.success)) toast.error("Test webhook KO", "Le webhook a répondu en erreur");
+    else toast.success("Test webhook OK");
     await load();
   };
 

@@ -1,24 +1,30 @@
 import { useState } from "react";
 import PhotoDropzone, { type PhotoItem } from "../components/PhotoDropzone";
+import { useToast } from "../components/StatusToast";
+import { LOCAL_USER_ID } from "../lib/constants";
 import { supabase } from "../lib/supabase";
 
 export default function Import() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [running, setRunning] = useState(false);
+  const toast = useToast();
 
   const uploadAll = async () => {
     setRunning(true);
     const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-    if (!user) return;
+    const userId = userData.user?.id ?? LOCAL_USER_ID;
+    let successCount = 0;
+    let failCount = 0;
 
     for (const photo of photos) {
       setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "uploading" } : item)));
       const ext = photo.file.name.split(".").pop() || "jpg";
-      const path = `${user.id}/${Date.now()}-${photo.id}.${ext}`;
+      const path = `${userId}/${Date.now()}-${photo.id}.${ext}`;
       const upload = await supabase.storage.from("captures").upload(path, photo.file, { upsert: false });
       if (upload.error) {
+        failCount += 1;
         setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: upload.error.message } : item)));
+        toast.error(`Upload échoué pour ${photo.file.name}`, upload.error.message);
         continue;
       }
 
@@ -33,20 +39,32 @@ export default function Import() {
           exif_departement: photo.exif.departement,
           exif_address: photo.exif.address,
           status: "pending",
-          user_id: user.id,
+          user_id: userId,
         })
         .select("id")
         .single();
 
       if (created.error) {
+        failCount += 1;
         setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: created.error.message } : item)));
+        toast.error(`Création capture échouée pour ${photo.file.name}`, created.error.message);
         continue;
       }
 
-      await supabase.functions.invoke("process-capture", { body: { capture_id: created.data.id } });
+      const processed = await supabase.functions.invoke("process-capture", { body: { capture_id: created.data.id } });
+      if (processed.error) {
+        failCount += 1;
+        setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: processed.error.message } : item)));
+        toast.error(`Traitement échoué pour ${photo.file.name}`, processed.error.message);
+        continue;
+      }
+      successCount += 1;
       setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "done" } : item)));
+      toast.success(`Photo traitée: ${photo.file.name}`);
     }
     setRunning(false);
+    if (successCount > 0 && failCount === 0) toast.success(`${successCount} photo(s) importée(s) et traitée(s)`);
+    if (failCount > 0) toast.error(`${failCount} photo(s) en échec`, `${successCount} OK`);
   };
 
   return (

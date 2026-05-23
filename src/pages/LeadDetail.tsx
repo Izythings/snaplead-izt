@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import ConfidenceBadge from "../components/ConfidenceBadge";
 import LeadCard from "../components/LeadCard";
 import ScriptDisplay from "../components/ScriptDisplay";
+import { useToast } from "../components/StatusToast";
 import { downloadCsv, leadsToCsv } from "../lib/csv";
 import { leadName } from "../lib/constants";
 import { supabase } from "../lib/supabase";
@@ -14,6 +15,7 @@ export default function LeadDetail() {
   const [confreres, setConfreres] = useState<LeadWithCapture[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
 
   const load = async () => {
     if (!id) return;
@@ -31,22 +33,34 @@ export default function LeadDetail() {
 
   const updateLead = async (payload: Partial<LeadWithCapture>) => {
     if (!lead) return;
-    await supabase.from("leads").update(payload).eq("id", lead.id);
+    const { error } = await supabase.from("leads").update(payload).eq("id", lead.id);
+    if (error) {
+      toast.error("Mise à jour lead échouée", error.message);
+      return;
+    }
+    toast.success("Lead mis à jour");
     await load();
   };
 
   const push = async () => {
     if (!lead) return;
     setBusy(true);
-    await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
-    await updateLead({ pushed_at: new Date().toISOString() });
+    const { error } = await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
+    if (error) toast.error("Push CRM échoué", error.message);
+    else {
+      await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
+      toast.success("Lead poussé au CRM");
+      await load();
+    }
     setBusy(false);
   };
 
   const searchConfreres = async () => {
     if (!lead) return;
     setBusy(true);
-    await supabase.functions.invoke("search-confreres", { body: { lead_id: lead.id } });
+    const { data, error } = await supabase.functions.invoke("search-confreres", { body: { lead_id: lead.id } });
+    if (error) toast.error("Recherche confrères échouée", error.message);
+    else toast.success(`${data?.created ?? 0} confrère(s) ajouté(s)`);
     await load();
     setBusy(false);
   };

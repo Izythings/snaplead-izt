@@ -19,6 +19,8 @@ export const CSV_HEADERS = [
   "score_confiance",
 ];
 
+export const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
+
 export const confidenceLabel = (score?: number | null) => {
   const value = score ?? 0;
   if (value >= 0.7) return { label: "Score élevé", color: "text-good", bg: "bg-good/10", border: "border-good/30" };
