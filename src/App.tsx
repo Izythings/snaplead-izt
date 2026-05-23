@@ -87,11 +87,12 @@ const Layout = () => (
 
 export default function App() {
   const e2eAuth = import.meta.env.VITE_E2E_AUTH === "true";
+  const disableAuth = import.meta.env.VITE_DISABLE_AUTH === "true";
   const localDev =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "";
-  const skipAuth = e2eAuth || localDev;
+  const skipAuth = disableAuth || e2eAuth || localDev;
   const { session, loading } = useSession();
   if (!skipAuth && loading) return <div className="grid min-h-screen place-items-center bg-paper">Chargement</div>;
   if (!skipAuth && !session) return <Auth />;
