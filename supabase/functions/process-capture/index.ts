@@ -1,4 +1,5 @@
 import { adminClient, callClaude, extractJson, getPappersCompany, normalizeCompany, scoreLead, searchPappers, searchSirene } from "../_shared/api.ts";
+import { createConfreresForLead } from "../_shared/confreres.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { karayCrmContext } from "../_shared/sales-context.ts";
 
@@ -115,7 +116,14 @@ Extracted photo data: ${JSON.stringify(extracted)}`;
       processed_at: new Date().toISOString(),
     }).eq("id", captureId);
 
-    return json({ lead });
+    let confreres = { created: 0 };
+    try {
+      confreres = await createConfreresForLead(supabase, lead);
+    } catch (confreresError) {
+      console.error("search-confreres-after-process failed", confreresError);
+    }
+
+    return json({ lead, confreres });
   } catch (error) {
     if (captureId) {
       await supabase.from("captures").update({ status: "failed", error_message: error instanceof Error ? error.message : String(error) }).eq("id", captureId);

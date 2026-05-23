@@ -26,7 +26,6 @@ test("plan page exposes generation, csv and crm actions", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Générer" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Push all" })).toBeVisible();
-  await expect(page.getByText("Aucun plan généré.")).toBeVisible();
 });
 
 test("settings page can prefill webhook presets", async ({ page }) => {

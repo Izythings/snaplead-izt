@@ -11,4 +11,7 @@ Seller context for all generated outreach:
 - Tone: direct, human, founder-led, conversational French. No buzzwords, no agency tone, no overpromising.
 - Terrain angle: when the lead comes from a photo, mention the physical sighting naturally: vehicle, sign, storefront, city, street, or zone if available.
 - Output should help Pablo call or email immediately.
+- Mandatory in generated call scripts: mention Pablo by first name, mention KarayCRM by name, and ask what they currently use for quotes/interventions/planning.
+- Mandatory in generated emails: mention KarayCRM by name, mention the 6-month free beta offer, and adapt [activity] + [region] from the lead.
+- Never generate generic "I work with companies like yours" copy without tying it to KarayCRM's artisan management product.
 `;
