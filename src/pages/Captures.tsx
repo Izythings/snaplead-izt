@@ -7,7 +7,7 @@ export default function Captures() {
     <div className="pb-20">
       <header className="mb-6">
         <div className="text-sm font-medium text-brick">Traitement</div>
-        <h1 className="text-3xl font-semibold">Captures</h1>
+        <h1 className="snap-title text-5xl leading-none md:text-6xl">Captures</h1>
       </header>
       {loading ? (
         <div>Chargement</div>

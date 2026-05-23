@@ -1,5 +1,6 @@
 import { adminClient, callClaude, extractJson } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
+import { karayCrmContext } from "../_shared/sales-context.ts";
 
 const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -21,12 +22,16 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: true });
     if (error) throw error;
 
-    const prompt = `B2B sales assistant. Given terrain leads + confreres, generate attack plan for tomorrow.
+    const prompt = `${karayCrmContext}
+
+B2B sales assistant. Given terrain leads + confreres, generate attack plan for tomorrow for Pablo/KarayCRM.
 Per trade/zone group:
-- Lead principal: personalized angle (mention terrain sighting), 30s call script, 3-4 line email
-- Confreres: sector approach, call script each
+- Lead principal: personalized angle that naturally mentions the terrain sighting, 30s call script, 3-4 line email
+- Confreres: sector approach by trade/zone, call script each
 - Recommended call order
-Tone: direct, pro, not pushy. Mention physical sighting for main lead. Sector approach for confreres.
+Tone: direct, pro, founder-led, not pushy. Mention physical sighting for main lead. Sector approach for confreres.
+Every script should anchor on KarayCRM's artisan-management use case and ask what they currently use for quotes/interventions/planning.
+Use the beta offer when useful: 6 months free, no commitment, no credit card, in exchange for field feedback.
 Return strict JSON:
 {
   "date": "YYYY-MM-DD",

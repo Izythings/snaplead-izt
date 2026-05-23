@@ -71,19 +71,19 @@ export default function Import() {
     <div className="pb-20">
       <header className="mb-6">
         <div className="text-sm font-medium text-brick">Import terrain</div>
-        <h1 className="text-3xl font-semibold">Photos du jour</h1>
+        <h1 className="snap-title text-5xl leading-none md:text-6xl">Photos du jour</h1>
       </header>
       <PhotoDropzone onPhotos={(items) => setPhotos((current) => [...items, ...current])} />
       {photos.length > 0 && (
         <>
           <div className="mt-5 flex justify-end">
-            <button disabled={running} onClick={uploadAll} className="rounded bg-brick px-4 py-2 font-medium text-white disabled:opacity-50">
+            <button disabled={running} onClick={uploadAll} className="snap-button bg-brick border-brick disabled:opacity-50">
               Lancer le traitement
             </button>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {photos.map((photo) => (
-              <article key={photo.id} className="surface overflow-hidden rounded">
+              <article key={photo.id} className="snap-panel overflow-hidden">
                 <img src={photo.preview} alt="" className="h-44 w-full object-cover" />
                 <div className="p-4">
                   <div className="mb-2 flex items-center justify-between">

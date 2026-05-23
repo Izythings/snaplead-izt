@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Archive, Check, ExternalLink, FileDown, Phone, Send, Users } from "lucide-react";
 import ConfidenceBadge from "../components/ConfidenceBadge";
 import LeadCard from "../components/LeadCard";
 import ScriptDisplay from "../components/ScriptDisplay";
@@ -8,6 +9,38 @@ import { downloadCsv, leadsToCsv } from "../lib/csv";
 import { leadName } from "../lib/constants";
 import { supabase } from "../lib/supabase";
 import type { LeadWithCapture } from "../lib/types";
+
+const Field = ({ label, value, mono = false }: { label: string; value?: string | number | null; mono?: boolean }) => (
+  <div className="min-w-0">
+    <div className="snap-label">{label}</div>
+    <div className={`${mono ? "mono" : ""} mt-1 truncate text-sm font-medium text-ink`}>{value || <span className="text-muted">-</span>}</div>
+  </div>
+);
+
+const BigScore = ({ score }: { score?: number | null }) => {
+  const pct = Math.round((score ?? 0) * 100);
+  const label = pct >= 70 ? "Score élevé" : pct >= 40 ? "Score moyen" : "Score faible";
+  const color = pct >= 70 ? "var(--c-confirm)" : pct >= 40 ? "var(--c-warn)" : "var(--c-alert)";
+  return (
+    <div className="snap-panel p-6">
+      <div className="flex items-baseline gap-1">
+        <div className="font-editorial text-7xl font-light leading-none tracking-[-0.04em]">{pct}</div>
+        <div className="font-editorial text-2xl italic text-muted">/100</div>
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+        <span className="text-sm font-semibold">{label}</span>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded bg-cream">
+        <div className="h-full rounded" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <div className="mt-4 flex justify-between border-t pt-3 text-xs text-muted" style={{ borderColor: "var(--c-line)" }}>
+        <span>Sirene · Pappers · Vision</span>
+        <span>Mis à jour</span>
+      </div>
+    </div>
+  );
+};
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -68,82 +101,141 @@ export default function LeadDetail() {
   if (!lead) return <div>Chargement</div>;
   const all = [lead, ...confreres];
 
+  const captured = lead.captures?.exif_taken_at ? new Date(lead.captures.exif_taken_at).toLocaleString("fr-FR") : "sur le terrain";
+  const location = lead.captures?.exif_address || [lead.ville, lead.departement].filter(Boolean).join(" · ") || "Zone inconnue";
+
   return (
-    <div className="pb-20">
-      <Link to="/" className="mb-4 inline-block text-sm text-brick">Retour</Link>
-      <header className="mb-5 grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="dark-surface rounded p-5">
-          <div className="mb-3 text-sm text-paper/60">Capturé {lead.captures?.exif_taken_at ? new Date(lead.captures.exif_taken_at).toLocaleString("fr-FR") : "sur le terrain"}</div>
-          <h1 className="text-4xl font-semibold">{leadName(lead)}</h1>
-          <p className="mt-2 text-paper/70">{lead.libelle_naf || lead.activite || "Activité non identifiée"}</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-sm">
-            <span className="rounded bg-white/10 px-2 py-1">NAF {lead.code_naf || "-"}</span>
-            <span className="rounded bg-white/10 px-2 py-1">{lead.ville || lead.departement || "Zone inconnue"}</span>
-            <span className="rounded bg-white/10 px-2 py-1">{lead.status}</span>
+    <div className="pb-24">
+      <Link to="/" className="mb-4 inline-block text-sm font-medium text-brick">Retour</Link>
+
+      <header className="mb-6 grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-brick" style={{ background: "var(--c-signalSoft)" }}>
+              Capturé sur le terrain
+            </span>
+            <span className="snap-label">{location}</span>
+          </div>
+          <div>
+            <h1 className="snap-title text-6xl leading-[0.95] md:text-7xl">{leadName(lead)}</h1>
+            <div className="mt-4 flex flex-wrap items-baseline gap-3">
+              <span className="rounded bg-cream px-2 py-1 text-xs font-semibold text-slate">NAF {lead.code_naf || "-"}</span>
+              <span className="font-editorial text-xl italic text-slate">{lead.libelle_naf || lead.activite || "Activité non identifiée"}</span>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field label="Adresse" value={lead.adresse_siege || lead.adresse || location} />
+            <Field label="Téléphone" value={lead.telephone} mono />
+            <Field label="Site web" value={lead.site_web} mono />
           </div>
         </div>
-        <div className="surface rounded p-5">
-          <ConfidenceBadge score={lead.confidence_score} />
-          <div className="mt-4 space-y-2 text-sm">
-            <p><span className="text-muted">Source</span> {lead.source_matching || "-"}</p>
-            <p><span className="text-muted">SIREN</span> <span className="mono">{lead.siren || "-"}</span></p>
-            <p><span className="text-muted">SIRET</span> <span className="mono">{lead.siret || "-"}</span></p>
-          </div>
-        </div>
+        <BigScore score={lead.confidence_score} />
       </header>
 
-      <section className="mb-5 grid gap-4 lg:grid-cols-3">
-        {[
-          ["Téléphone", lead.telephone],
-          ["Site web", lead.site_web],
-          ["Email", lead.email],
-          ["Adresse", lead.adresse_siege || lead.adresse],
-          ["Dirigeant", lead.dirigeant],
-          ["Effectif", lead.effectif],
-          ["Création", lead.date_creation],
-          ["CA", lead.chiffre_affaires],
-          ["Capture", lead.captures?.exif_address],
-        ].map(([label, value]) => (
-          <div key={label} className="surface rounded p-4">
-            <div className="text-sm text-muted">{label}</div>
-            <div className="mt-1 font-medium">{value || "-"}</div>
+      <section className="snap-panel mb-6 grid overflow-hidden sm:grid-cols-2 lg:grid-cols-6">
+        <div className="border-b p-4 sm:border-r lg:border-b-0" style={{ borderColor: "var(--c-line)" }}><Field label="SIREN" value={lead.siren} mono /></div>
+        <div className="border-b p-4 sm:border-r lg:border-b-0" style={{ borderColor: "var(--c-line)" }}><Field label="SIRET" value={lead.siret} mono /></div>
+        <div className="border-b p-4 sm:border-r lg:border-b-0" style={{ borderColor: "var(--c-line)" }}><Field label="Code NAF" value={lead.code_naf} mono /></div>
+        <div className="border-b p-4 sm:border-r lg:border-b-0" style={{ borderColor: "var(--c-line)" }}><Field label="Création" value={lead.date_creation} /></div>
+        <div className="border-b p-4 sm:border-r lg:border-b-0" style={{ borderColor: "var(--c-line)" }}><Field label="Effectif" value={lead.effectif} /></div>
+        <div className="p-4"><Field label="Statut" value={lead.status} /></div>
+      </section>
+
+      <section className="mb-7 grid gap-6 lg:grid-cols-[440px_1fr]">
+        <div className="space-y-4">
+          <div className="flex items-end justify-between">
+            <h2 className="snap-title text-3xl">Photo source</h2>
+            <span className="snap-label">Extraction automatique</span>
           </div>
-        ))}
+          <div className="relative h-80 overflow-hidden rounded-lg border" style={{ background: "var(--c-panelAlt)", borderColor: "var(--c-line)" }}>
+            <div className="absolute inset-0 opacity-40" style={{ background: "radial-gradient(ellipse 90% 60% at 50% 40%, rgba(194,84,45,.20), transparent 70%)" }} />
+            <div className="absolute left-[10%] right-[8%] top-[34%] bottom-[16%] rounded-md bg-ink/20" />
+            <div className="absolute left-[18%] top-[22%] h-[52%] w-[64%] rounded border-2 border-brick/80 bg-brick/10" />
+            <div className="absolute left-3 top-3 rounded-full border bg-white/80 px-3 py-1 text-xs font-semibold backdrop-blur" style={{ borderColor: "var(--c-line)" }}>
+              Champs extraits
+            </div>
+            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-gradient-to-t from-paper/90 to-transparent px-4 py-3 text-xs text-slate">
+              <span>{lead.captures?.photo_path || "Photo terrain"}</span>
+              <span>{captured}</span>
+            </div>
+          </div>
+          <div className="snap-panel p-4">
+            <div className="mb-3 flex justify-between">
+              <span className="text-sm font-semibold">Champs extraits</span>
+              <ConfidenceBadge score={lead.confidence_score} />
+            </div>
+            <div className="space-y-2">
+              <Field label="Nom commercial" value={lead.nom_commercial} />
+              <Field label="Activité" value={lead.activite || lead.libelle_naf} />
+              <Field label="Email" value={lead.email} mono />
+              <Field label="Source matching" value={lead.source_matching} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="flex items-end justify-between">
+            <h2 className="snap-title text-3xl">Synthèse</h2>
+            <span className="snap-label">Générée à partir des sources publiques</span>
+          </div>
+          <div>
+            <div className="snap-label font-semibold text-ink">L'essentiel</div>
+            <p className="snap-copy mt-2 text-xl">{lead.resume_business || "Synthèse non générée."}</p>
+          </div>
+          <div className="h-px" style={{ background: "var(--c-line)" }} />
+          <div>
+            <div className="snap-label font-semibold text-ink">Angle d'approche recommandé</div>
+            <p className="snap-copy mt-2 text-lg italic">« {lead.angle_approche || "Angle non généré."} »</p>
+          </div>
+          <div className="h-px" style={{ background: "var(--c-line)" }} />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Dirigeant" value={lead.dirigeant} />
+            <Field label="Chiffre d'affaires" value={lead.chiffre_affaires} />
+            <Field label="Sources" value={lead.source_matching || "Sirene · Pappers"} />
+          </div>
+        </div>
       </section>
 
-      <section className="mb-5 surface rounded p-4">
-        <h2 className="font-semibold">Synthèse</h2>
-        <p className="mt-2 text-muted">{lead.resume_business || "Synthèse non générée."}</p>
-        <h3 className="mt-4 font-semibold">Angle recommandé</h3>
-        <p className="mt-2 text-muted">{lead.angle_approche || "Angle non généré."}</p>
-      </section>
-
-      <div className="mb-5 grid gap-4 lg:grid-cols-2">
-        <ScriptDisplay title="Script d'appel · 30 s" content={lead.script_appel} />
-        <ScriptDisplay title="Email de prise de contact" content={lead.email_prospection} />
-      </div>
-
-      <section className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Entreprises similaires</h2>
-          <button disabled={busy} onClick={searchConfreres} className="rounded bg-ink px-3 py-2 text-sm text-paper disabled:opacity-50">
+      <section className="mb-7 border-y py-7" style={{ borderColor: "var(--c-line)" }}>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="snap-label font-semibold text-brick">Entreprises similaires</div>
+            <h2 className="snap-title mt-1 text-4xl">{confreres.length || "Aucun"} profil{confreres.length > 1 ? "s" : ""} dans la zone</h2>
+            <p className="mt-1 text-sm text-muted">Recherche Pappers · NAF {lead.code_naf || "-"} · département {lead.departement || "-"}</p>
+          </div>
+          <button disabled={busy} onClick={searchConfreres} className="snap-button disabled:opacity-50">
+            <Users size={16} />
             Rechercher
           </button>
         </div>
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           {confreres.map((peer, index) => <LeadCard key={peer.id} lead={peer} index={index} />)}
+          {confreres.length === 0 && <div className="snap-panel p-6 text-muted">Aucun confrère recherché pour ce lead.</div>}
         </div>
       </section>
 
-      <section className="surface rounded p-4">
+      <section className="mb-7">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="snap-title text-4xl">Prochaines actions</h2>
+          <span className="snap-label">Tout est prêt à copier-coller</span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ScriptDisplay title="Script d'appel · 30 s" content={lead.script_appel} />
+          <ScriptDisplay title="Email de prise de contact" content={lead.email_prospection} />
+        </div>
+      </section>
+
+      <section className="snap-panel p-4">
         <label className="mb-2 block font-semibold">Notes</label>
-        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-28 w-full rounded border border-ink/15 p-3" />
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-28 w-full rounded border p-3 outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }} />
         <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => updateLead({ notes })} className="rounded border border-ink/15 px-3 py-2 text-sm">Enregistrer</button>
-          <button onClick={() => updateLead({ status: "contacted" })} className="rounded bg-good px-3 py-2 text-sm text-white">Marquer comme contacté</button>
-          <button onClick={() => updateLead({ status: "archived" })} className="rounded bg-slate px-3 py-2 text-sm text-white">Archiver</button>
-          <button disabled={busy} onClick={push} className="rounded bg-brick px-3 py-2 text-sm text-white disabled:opacity-50">Push to CRM</button>
-          <button onClick={() => downloadCsv("leadsnap-lead.csv", leadsToCsv(all))} className="rounded border border-ink/15 px-3 py-2 text-sm">Exporter CSV</button>
+          <button onClick={() => updateLead({ notes })} className="snap-button-secondary">Enregistrer</button>
+          <button onClick={() => updateLead({ status: "contacted" })} className="snap-button bg-good border-good"><Check size={16} />Contacté</button>
+          <button onClick={() => updateLead({ status: "archived" })} className="snap-button-secondary"><Archive size={16} />Archiver</button>
+          <button disabled={busy} onClick={push} className="snap-button bg-brick border-brick disabled:opacity-50"><Send size={16} />Push CRM</button>
+          <button onClick={() => downloadCsv("leadsnap-lead.csv", leadsToCsv(all))} className="snap-button-secondary"><FileDown size={16} />CSV</button>
+          {lead.telephone && <a href={`tel:${lead.telephone.replace(/\s/g, "")}`} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
+          {lead.site_web && <a href={lead.site_web.startsWith("http") ? lead.site_web : `https://${lead.site_web}`} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}
         </div>
       </section>
     </div>

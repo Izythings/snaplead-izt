@@ -10,7 +10,7 @@ const statusClass = {
 
 export default function CaptureCard({ capture }: { capture: Capture }) {
   return (
-    <article className="surface rounded p-4">
+    <article className="snap-panel p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="mono text-xs text-muted">{new Date(capture.created_at).toLocaleString("fr-FR")}</div>

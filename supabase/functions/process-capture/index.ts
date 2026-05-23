@@ -1,5 +1,6 @@
 import { adminClient, callClaude, extractJson, getPappersCompany, normalizeCompany, scoreLead, searchPappers, searchSirene } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
+import { karayCrmContext } from "../_shared/sales-context.ts";
 
 const visionPrompt = `Analyze photo of business signage (vehicle, storefront, construction panel, etc).
 Extract visible commercial data. Return strict JSON:
@@ -69,7 +70,28 @@ Deno.serve(async (req) => {
       gps: Boolean(capture.exif_lat && capture.exif_lng && normalized.adresse_siege),
     });
 
-    const generationPrompt = `Generate French B2B sales fields for this lead. Return strict JSON with resume_business, angle_approche, script_appel, email_prospection. Lead: ${JSON.stringify(normalized)}. Terrain context: ${JSON.stringify(capture)}.`;
+    const generationPrompt = `${karayCrmContext}
+
+Generate French B2B sales fields for this lead.
+
+Return strict JSON only:
+{
+  "resume_business": "short useful summary of the company and why it may fit KarayCRM",
+  "angle_approche": "specific recommended angle for Pablo, using terrain context when available",
+  "script_appel": "30-second cold call script in Pablo's voice",
+  "email_prospection": "short cold email for the beta offer"
+}
+
+Rules:
+- Personalize with trade, city/region, company size, and sighting context when available.
+- The script must include the discovery question about current tools for quotes/interventions/planning.
+- The email must mention the 6-month free beta when relevant.
+- Do not invent a first name if the leader is unknown; use Bonjour instead.
+- Keep it concise and ready to copy-paste.
+
+Lead: ${JSON.stringify(normalized)}
+Terrain context: ${JSON.stringify(capture)}
+Extracted photo data: ${JSON.stringify(extracted)}`;
     const generated = extractJson(await callClaude([{ type: "text", text: generationPrompt }], 1400));
 
     const { data: lead, error: leadError } = await supabase.from("leads").insert({

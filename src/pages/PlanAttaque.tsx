@@ -36,7 +36,7 @@ export default function PlanAttaque() {
       <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="text-sm font-medium text-brick">Demain matin</div>
-          <h1 className="text-3xl font-semibold">Plan d'attaque</h1>
+          <h1 className="snap-title text-5xl leading-none md:text-6xl">Plan d'attaque</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button disabled={busy} onClick={async () => {
@@ -49,13 +49,13 @@ export default function PlanAttaque() {
             } finally {
               setBusy(false);
             }
-          }} className="rounded bg-brick px-4 py-2 font-medium text-white disabled:opacity-50">
+          }} className="snap-button bg-brick border-brick disabled:opacity-50">
             Générer
           </button>
-          <button onClick={() => downloadCsv("leadsnap-plan.csv", leadsToCsv(leads))} className="rounded border border-ink/15 px-4 py-2 font-medium">
+          <button onClick={() => downloadCsv("leadsnap-plan.csv", leadsToCsv(leads))} className="snap-button-secondary">
             Export CSV
           </button>
-          <button disabled={busy} onClick={pushAll} className="rounded bg-ink px-4 py-2 font-medium text-paper disabled:opacity-50">
+          <button disabled={busy} onClick={pushAll} className="snap-button disabled:opacity-50">
             Push all
           </button>
         </div>
@@ -63,7 +63,7 @@ export default function PlanAttaque() {
 
       {content ? (
         <>
-          <section className="mb-5 dark-surface rounded p-5">
+          <section className="mb-5 snap-panel bg-ink p-5 text-paper">
             <div className="text-sm text-paper/50">{content.date}</div>
             <p className="mt-2 text-xl">{content.resume_journee}</p>
           </section>
@@ -71,15 +71,15 @@ export default function PlanAttaque() {
             {content.groupes.map((group) => {
               const principal = leads.find((lead) => lead.id === group.lead_principal.lead_id);
               return (
-                <section key={`${group.metier}-${group.zone}`} className="surface rounded p-5">
+                <section key={`${group.metier}-${group.zone}`} className="snap-panel p-5">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-xl font-semibold">{group.metier}</h2>
+                      <h2 className="snap-title text-3xl">{group.metier}</h2>
                       <p className="text-muted">{group.zone} · {group.contexte}</p>
                     </div>
                     <div className="mono rounded bg-paper px-2 py-1 text-sm">{group.ordre_recommande.length} appels</div>
                   </div>
-                  <div className="mb-4 rounded bg-paper p-4">
+                  <div className="snap-panel-alt mb-4 p-4">
                     <div className="text-sm font-medium text-brick">Lead vu terrain</div>
                     <div className="mt-1 text-lg font-semibold">{principal ? leadName(principal) : group.lead_principal.nom}</div>
                     <p className="mt-2 text-muted">{group.lead_principal.angle}</p>
@@ -91,11 +91,11 @@ export default function PlanAttaque() {
                   {group.confreres.length > 0 && (
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
                       {group.confreres.map((peer, index) => (
-                        <article key={peer.lead_id} className="rounded border border-ink/10 p-4">
+                        <article key={peer.lead_id} className="snap-panel p-4">
                           <div className="mono text-xs text-muted">{String(index + 1).padStart(2, "0")}</div>
                           <h3 className="mt-1 font-semibold">{peer.nom}</h3>
                           <p className="mt-2 text-sm text-muted">{peer.accroche}</p>
-                          <button onClick={() => navigator.clipboard.writeText(peer.script_appel)} className="mt-3 rounded bg-ink px-3 py-1.5 text-sm text-paper">
+                          <button onClick={() => navigator.clipboard.writeText(peer.script_appel)} className="snap-button mt-3 py-1.5 text-sm">
                             Copier script
                           </button>
                         </article>
@@ -108,7 +108,7 @@ export default function PlanAttaque() {
           </div>
         </>
       ) : (
-        <div className="surface rounded p-8 text-center text-muted">Aucun plan généré.</div>
+        <div className="snap-panel p-8 text-center text-muted">Aucun plan généré.</div>
       )}
     </div>
   );

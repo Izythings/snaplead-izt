@@ -1,5 +1,5 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { BarChart3, Camera, ClipboardList, Home, Settings, Target, UploadCloud } from "lucide-react";
+import { Camera, ClipboardList, Home, Settings, UploadCloud } from "lucide-react";
 import { useSession } from "./hooks/useSession";
 import { supabase } from "./lib/supabase";
 import Dashboard from "./pages/Dashboard";
@@ -21,12 +21,12 @@ const nav = [
 
 const Layout = () => (
   <div className="min-h-screen bg-paper text-ink">
-    <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-ink/10 bg-ink px-4 py-5 text-paper md:block">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded bg-brick text-lg font-bold">s</div>
+    <aside className="fixed inset-y-0 left-0 hidden w-64 border-r px-4 py-5 md:block" style={{ background: "var(--c-dossier)", borderColor: "var(--c-line)" }}>
+      <div className="mb-8 flex items-center gap-3 border-b pb-5" style={{ borderColor: "var(--c-line)" }}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brick font-editorial text-lg italic text-white">s</div>
         <div>
-          <div className="font-semibold">SnapLead</div>
-          <div className="text-xs text-paper/50">Terrain → action</div>
+          <div className="font-semibold tracking-tight">SnapLead</div>
+          <div className="text-xs text-muted">Terrain → action</div>
         </div>
       </div>
       <nav className="space-y-1">
@@ -36,7 +36,7 @@ const Layout = () => (
             to={item.to}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded px-3 py-2 text-sm transition ${
-                isActive ? "bg-paper text-ink" : "text-paper/70 hover:bg-white/10 hover:text-paper"
+                isActive ? "bg-ink text-paper" : "text-muted hover:bg-cream hover:text-ink"
               }`
             }
           >
@@ -47,16 +47,17 @@ const Layout = () => (
       </nav>
       <button
         onClick={() => supabase.auth.signOut()}
-        className="absolute bottom-5 left-4 right-4 rounded border border-white/10 px-3 py-2 text-sm text-paper/70 hover:bg-white/10"
+        className="absolute bottom-5 left-4 right-4 rounded border px-3 py-2 text-sm text-muted hover:bg-cream"
+        style={{ borderColor: "var(--c-line)" }}
       >
         Déconnexion
       </button>
     </aside>
     <main className="md:pl-64">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex items-center justify-between md:hidden">
+        <div className="mb-5 flex items-center justify-between border-b pb-4 md:hidden" style={{ borderColor: "var(--c-line)" }}>
           <div className="flex items-center gap-2 font-semibold">
-            <Target size={18} />
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-brick font-editorial italic text-white">s</div>
             SnapLead
           </div>
           <NavLink to="/import" className="rounded bg-brick px-3 py-2 text-sm text-white">
@@ -74,7 +75,7 @@ const Layout = () => (
         </Routes>
       </div>
     </main>
-    <nav className="fixed inset-x-0 bottom-0 grid grid-cols-5 border-t border-ink/10 bg-paper md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-paper md:hidden" style={{ borderColor: "var(--c-line)" }}>
       {nav.map((item) => (
         <NavLink key={item.to} to={item.to} className="flex flex-col items-center gap-1 px-1 py-2 text-[11px]">
           <item.icon size={17} />

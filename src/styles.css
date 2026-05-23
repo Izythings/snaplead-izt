@@ -13,6 +13,24 @@ body {
   font-family: "DM Sans", system-ui, sans-serif;
 }
 
+:root {
+  --c-paper: #f6f4ef;
+  --c-dossier: #ffffff;
+  --c-panel: #ffffff;
+  --c-panelAlt: #f1ede4;
+  --c-line: rgba(20, 28, 45, 0.1);
+  --c-lineSoft: rgba(20, 28, 45, 0.05);
+  --c-ink: #141c2d;
+  --c-inkSoft: #4a5365;
+  --c-inkMute: #7a8294;
+  --c-inkFaint: #b1b6c2;
+  --c-signal: #c2542d;
+  --c-signalSoft: rgba(194, 84, 45, 0.1);
+  --c-confirm: #1f7a52;
+  --c-warn: #b07a1a;
+  --c-alert: #b8341e;
+}
+
 button,
 input,
 textarea,
@@ -25,9 +43,70 @@ select {
 }
 
 .surface {
-  @apply border border-ink/10 bg-white;
+  @apply border bg-white;
+  border-color: var(--c-line);
 }
 
 .dark-surface {
-  @apply border border-white/10 bg-ink text-paper;
+  @apply border bg-ink text-paper;
+  border-color: var(--c-line);
+}
+
+.snap-panel {
+  background: var(--c-panel);
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+}
+
+.snap-panel-alt {
+  background: var(--c-panelAlt);
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+}
+
+.snap-label {
+  color: var(--c-inkMute);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.snap-title {
+  font-family: "Newsreader", serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.snap-copy {
+  font-family: "Newsreader", serif;
+  color: var(--c-inkSoft);
+  line-height: 1.5;
+}
+
+.snap-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--c-ink);
+  background: var(--c-ink);
+  color: var(--c-paper);
+  padding: 0.55rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.snap-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--c-line);
+  background: var(--c-panel);
+  color: var(--c-ink);
+  padding: 0.55rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }

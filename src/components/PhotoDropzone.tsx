@@ -38,7 +38,8 @@ export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoIt
         event.preventDefault();
         void handleFiles(event.dataTransfer.files);
       }}
-      className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded border border-dashed border-ink/20 bg-white p-8 text-center"
+      className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-white p-8 text-center"
+      style={{ borderColor: "var(--c-line)" }}
       onClick={() => inputRef.current?.click()}
     >
       <UploadCloud className="mb-3 text-brick" size={34} />
