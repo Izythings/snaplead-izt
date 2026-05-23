@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f4ef;
+  color: #141c2d;
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+.surface {
+  @apply border border-ink/10 bg-white;
+}
+
+.dark-surface {
+  @apply border border-white/10 bg-ink text-paper;
+}

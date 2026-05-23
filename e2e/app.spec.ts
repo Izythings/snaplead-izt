@@ -1,0 +1,40 @@
+import { expect, test } from "@playwright/test";
+
+test("dashboard authenticated shell renders core navigation", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { name: "Plan commercial terrain" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Importer des photos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Générer le plan" })).toBeVisible();
+  await expect(page.getByRole("main").getByText("Captures", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByText("Leads", { exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByText("Confrères", { exact: true })).toBeVisible();
+});
+
+test("import page exposes batch photo workflow", async ({ page }) => {
+  await page.goto("/import");
+
+  await expect(page.getByRole("heading", { name: "Photos du jour" })).toBeVisible();
+  await expect(page.getByText("Déposer les photos terrain")).toBeVisible();
+  await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant upload.")).toBeVisible();
+});
+
+test("plan page exposes generation, csv and crm actions", async ({ page }) => {
+  await page.goto("/plan");
+
+  await expect(page.getByRole("heading", { name: "Plan d'attaque" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Générer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Push all" })).toBeVisible();
+  await expect(page.getByText("Aucun plan généré.")).toBeVisible();
+});
+
+test("settings page can prefill webhook presets", async ({ page }) => {
+  await page.goto("/settings");
+
+  await expect(page.getByRole("heading", { name: "Webhooks" })).toBeVisible();
+  await page.getByRole("button", { name: "Make" }).click();
+  await expect(page.getByPlaceholder("URL webhook")).toHaveValue("https://hook.eu1.make.com/...");
+  await page.getByRole("button", { name: "Zapier" }).click();
+  await expect(page.getByPlaceholder("URL webhook")).toHaveValue("https://hooks.zapier.com/hooks/catch/...");
+});
