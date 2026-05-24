@@ -36,7 +36,7 @@ test("import page exposes batch photo workflow", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Photos du jour" })).toBeVisible();
   await expect(page.getByText("Déposer les photos terrain")).toBeVisible();
-  await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant upload.")).toBeVisible();
+  await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant compression et upload.")).toBeVisible();
 });
 
 test("plan page exposes generation, csv and crm actions", async ({ page }) => {
