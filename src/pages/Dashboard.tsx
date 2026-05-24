@@ -34,8 +34,9 @@ export default function Dashboard() {
           </div>
         ))}
       </section>
-      <section className="mb-6 grid gap-3 sm:grid-cols-3">
+      <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Link to="/import" className="snap-button bg-brick border-brick">Importer des photos</Link>
+        <Link to="/leads" className="snap-button">Ouvrir le CRM</Link>
         <Link to="/plan" className="snap-button">Générer le plan</Link>
         <Link to="/settings" className="snap-button-secondary">Configurer webhook</Link>
       </section>
@@ -47,7 +48,10 @@ export default function Dashboard() {
           </div>
         </section>
         <section>
-          <h2 className="snap-title mb-3 text-3xl">Derniers leads</h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="snap-title text-3xl">Derniers leads</h2>
+            <Link to="/leads" className="text-sm font-medium text-brick">Tout voir</Link>
+          </div>
           <div className="space-y-3">
             {leads.slice(0, 5).map((lead) => <LeadCard key={lead.id} lead={lead} />)}
           </div>

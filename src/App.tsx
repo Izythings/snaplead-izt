@@ -1,10 +1,11 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { Camera, ClipboardList, Home, Settings, UploadCloud } from "lucide-react";
+import { Camera, ClipboardList, Home, Settings, UploadCloud, Users } from "lucide-react";
 import { useSession } from "./hooks/useSession";
 import { supabase } from "./lib/supabase";
 import Dashboard from "./pages/Dashboard";
 import Import from "./pages/Import";
 import Captures from "./pages/Captures";
+import LeadsCRM from "./pages/LeadsCRM";
 import LeadDetail from "./pages/LeadDetail";
 import PlanAttaque from "./pages/PlanAttaque";
 import SettingsPage from "./pages/Settings";
@@ -14,6 +15,7 @@ import { ToastProvider } from "./components/StatusToast";
 const nav = [
   { to: "/", label: "Dashboard", icon: Home },
   { to: "/import", label: "Import", icon: UploadCloud },
+  { to: "/leads", label: "Leads", icon: Users },
   { to: "/captures", label: "Captures", icon: Camera },
   { to: "/plan", label: "Plan", icon: ClipboardList },
   { to: "/settings", label: "Réglages", icon: Settings },
@@ -77,6 +79,7 @@ const Layout = () => (
           <Route path="/" element={<Dashboard />} />
           <Route path="/import" element={<Import />} />
           <Route path="/captures" element={<Captures />} />
+          <Route path="/leads" element={<LeadsCRM />} />
           <Route path="/leads/:id" element={<LeadDetail />} />
           <Route path="/plan" element={<PlanAttaque />} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -84,7 +87,7 @@ const Layout = () => (
         </Routes>
       </div>
     </main>
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-paper md:hidden" style={{ borderColor: "var(--c-line)" }}>
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t bg-paper md:hidden" style={{ borderColor: "var(--c-line)" }}>
       {nav.map((item) => (
         <NavLink key={item.to} to={item.to} className="flex flex-col items-center gap-1 px-1 py-2 text-[11px]">
           <item.icon size={17} />

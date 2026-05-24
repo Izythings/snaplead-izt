@@ -20,8 +20,8 @@ export default function CaptureCard({ capture }: { capture: Capture }) {
         <span className={`rounded px-2 py-1 text-xs ${statusClass[capture.status]}`}>{capture.status}</span>
       </div>
       {capture.error_message && <p className="mt-3 text-sm text-red-700">{capture.error_message}</p>}
-      <Link to="/captures" className="mt-3 inline-block text-sm font-medium text-brick">
-        Voir le traitement
+      <Link to={`/leads?capture=${capture.id}`} className="mt-3 inline-block text-sm font-medium text-brick">
+        Voir les leads extraits
       </Link>
     </article>
   );

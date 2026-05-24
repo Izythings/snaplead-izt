@@ -5,10 +5,21 @@ test("dashboard authenticated shell renders core navigation", async ({ page }) =
 
   await expect(page.getByRole("heading", { name: "Plan commercial terrain" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Importer des photos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ouvrir le CRM" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Générer le plan" })).toBeVisible();
   await expect(page.getByRole("main").getByText("Captures", { exact: true })).toBeVisible();
   await expect(page.getByRole("main").getByText("Leads", { exact: true })).toBeVisible();
   await expect(page.getByRole("main").getByText("Confrères", { exact: true })).toBeVisible();
+});
+
+test("crm page exposes lead filters and internal actions", async ({ page }) => {
+  await page.goto("/leads");
+
+  await expect(page.getByRole("heading", { name: "Leads" })).toBeVisible();
+  await expect(page.getByPlaceholder("Rechercher nom, ville, téléphone")).toBeVisible();
+  await expect(page.locator("select").first()).toBeVisible();
+  await expect(page.getByText("Leads filtrés")).toBeVisible();
+  await expect(page.getByText("Score moyen")).toBeVisible();
 });
 
 test("import page exposes batch photo workflow", async ({ page }) => {
