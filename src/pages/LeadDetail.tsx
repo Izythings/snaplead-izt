@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import { Archive, Check, ExternalLink, FileDown, Phone, Send, Users } from "lucide-react";
 import ConfidenceBadge from "../components/ConfidenceBadge";
 import LeadCard from "../components/LeadCard";
+import RelevanceBadge from "../components/RelevanceBadge";
 import ScriptDisplay from "../components/ScriptDisplay";
 import { useToast } from "../components/StatusToast";
 import { downloadCsv, leadsToCsv } from "../lib/csv";
 import { leadName } from "../lib/constants";
+import { relevanceFactors, relevanceScore } from "../lib/relevance";
 import { supabase } from "../lib/supabase";
 import type { LeadWithCapture } from "../lib/types";
 
@@ -27,7 +29,7 @@ const scoreFactors = (lead: LeadWithCapture) => [
   { label: "GPS / contexte terrain", weight: 0.05, hit: Boolean(lead.captures?.exif_lat && lead.captures?.exif_lng) },
 ];
 
-const BigScore = ({ score, onOpen }: { score?: number | null; onOpen: () => void }) => {
+const BigScore = ({ score, title, source, onOpen }: { score?: number | null; title: string; source: string; onOpen: () => void }) => {
   const pct = Math.round((score ?? 0) * 100);
   const label = pct >= 70 ? "Score élevé" : pct >= 40 ? "Score moyen" : "Score faible";
   const color = pct >= 70 ? "var(--c-confirm)" : pct >= 40 ? "var(--c-warn)" : "var(--c-alert)";
@@ -39,13 +41,13 @@ const BigScore = ({ score, onOpen }: { score?: number | null; onOpen: () => void
       </div>
       <div className="mt-4 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-        <span className="text-sm font-semibold">{label}</span>
+        <span className="text-sm font-semibold">{title} · {label}</span>
       </div>
       <div className="mt-3 h-1.5 overflow-hidden rounded bg-cream">
         <div className="h-full rounded" style={{ width: `${pct}%`, background: color }} />
       </div>
       <div className="mt-4 flex justify-between border-t pt-3 text-xs text-muted" style={{ borderColor: "var(--c-line)" }}>
-        <span>Sirene · Pappers · Vision</span>
+        <span>{source}</span>
         <span>Voir justification</span>
       </div>
     </button>
@@ -86,6 +88,39 @@ const ScoreDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () =>
   );
 };
 
+const RelevanceDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () => void }) => {
+  const factors = relevanceFactors(lead);
+  const pct = Math.round(relevanceScore(lead) * 100);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4" onClick={onClose}>
+      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <div className="snap-label text-brick">Pertinence commerciale</div>
+            <h2 className="snap-title mt-1 text-4xl">{pct}/100</h2>
+          </div>
+          <button onClick={onClose} className="snap-button-secondary px-3 py-1.5 text-sm">Fermer</button>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          Score orienté prospection KarayCRM. Il ne mesure pas la fiabilité de l'identification, mais l'intérêt commercial du lead.
+        </p>
+        <div className="space-y-2">
+          {factors.map((factor) => (
+            <div key={factor.label} className="flex items-center gap-3 rounded border p-3" style={{ borderColor: "var(--c-line)", background: factor.score >= 0.7 ? "var(--c-panel)" : "var(--c-panelAlt)" }}>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: factor.score >= 0.7 ? "var(--c-confirm)" : factor.score >= 0.4 ? "var(--c-warn)" : "var(--c-alert)" }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{factor.label}</div>
+                <div className="text-xs text-muted">{factor.detail}</div>
+              </div>
+              <div className="mono text-xs text-muted">{Math.round(factor.score * 100)}% · {Math.round(factor.weight * 100)}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function LeadDetail() {
   const { id } = useParams();
   const [lead, setLead] = useState<LeadWithCapture | null>(null);
@@ -93,6 +128,7 @@ export default function LeadDetail() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [relevanceOpen, setRelevanceOpen] = useState(false);
   const toast = useToast();
 
   const load = async () => {
@@ -174,7 +210,10 @@ export default function LeadDetail() {
             <Field label="Site web" value={lead.site_web} mono />
           </div>
         </div>
-        <BigScore score={lead.confidence_score} onOpen={() => setScoreOpen(true)} />
+        <div className="grid gap-3">
+          <BigScore score={relevanceScore(lead)} title="Pertinence" source="Activité · taille · âge · contact" onOpen={() => setRelevanceOpen(true)} />
+          <BigScore score={lead.confidence_score} title="Confiance" source="Sirene · Pappers · Vision" onOpen={() => setScoreOpen(true)} />
+        </div>
       </header>
 
       <section className="snap-panel mb-6 grid overflow-hidden sm:grid-cols-2 lg:grid-cols-6">
@@ -191,8 +230,8 @@ export default function LeadDetail() {
           <div className="snap-panel p-4">
             <div className="mb-3 flex justify-between">
               <span className="text-sm font-semibold">Champs extraits</span>
-              <button onClick={() => setScoreOpen(true)} className="text-left">
-                <ConfidenceBadge score={lead.confidence_score} />
+              <button onClick={() => setRelevanceOpen(true)} className="text-left">
+                <RelevanceBadge score={relevanceScore(lead)} />
               </button>
             </div>
             <div className="space-y-2">
@@ -270,6 +309,7 @@ export default function LeadDetail() {
         </div>
       </section>
       {scoreOpen && <ScoreDetails lead={lead} onClose={() => setScoreOpen(false)} />}
+      {relevanceOpen && <RelevanceDetails lead={lead} onClose={() => setRelevanceOpen(false)} />}
     </div>
   );
 }

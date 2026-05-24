@@ -19,8 +19,8 @@ test("crm page exposes lead filters and internal actions", async ({ page }) => {
   await expect(page.getByPlaceholder("Rechercher nom, ville, téléphone")).toBeVisible();
   await expect(page.locator("select").first()).toBeVisible();
   await expect(page.getByText("Leads filtrés")).toBeVisible();
-  await expect(page.locator(".snap-panel").filter({ hasText: "Score moyen" }).first()).toBeVisible();
-  const scoreHeader = page.getByRole("button", { name: /Trier par Score/ });
+  await expect(page.locator(".snap-panel").filter({ hasText: "Pertinence moyenne" }).first()).toBeVisible();
+  const scoreHeader = page.getByRole("button", { name: /Trier par Pertinence/ });
   if (await scoreHeader.isVisible()) {
     await scoreHeader.click();
     await expect(page).toHaveURL(/sort=score-asc/);

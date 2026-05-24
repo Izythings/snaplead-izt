@@ -1,4 +1,4 @@
-# CLAUDE.md — LeadSnap
+# CLAUDE.md — Scovio.io
 
 ## What
 
@@ -105,7 +105,7 @@ CREATE TABLE leads (
   effectif TEXT, tranche_effectif_code TEXT,
   chiffre_affaires TEXT, adresse_siege TEXT, departement TEXT,
   -- scores
-  confidence_score REAL, -- 0-1
+  confidence_score REAL, -- 0-1, identification reliability only: Sirene/SIRET/address/contact/source matching
   source_matching TEXT, -- sirene|pappers|manual
   -- IA generated
   resume_business TEXT, angle_approche TEXT,
@@ -369,10 +369,18 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-... PAPPERS_API_KEY=... INSEE_CONS
 
 ## UX
 
-Dark mode. Industrial/utilitarian. No fluff.
-- Fonts: JetBrains Mono (data), DM Sans (text)
-- Colors: bg #0a0a0a, green #22c55e (high), orange #f59e0b (medium), red #ef4444 (low)
-- Thin border cards, no heavy shadows, generous spacing
+Scovio.io identity. Utilitarian B2B SaaS, tabular/ops, no fluff.
+- Fonts: Geist (UI), JetBrains Mono (IDs/data only)
+- Colors: Paper #FAFAF7, Ink #0E0E10, Signal #E2503E, Slate #3F3F46
+- Thin border cards, 6-8px radius, no heavy shadows, dense but readable spacing
+
+### Scoring
+
+Keep two separate scores:
+- **Confidence score**: reliability of the identified company. Based on SIREN/SIRET, legal identity, address/city/dept, phone/site/email, Sirene/Pappers/Vision matching. This answers: "is this the right company?"
+- **Relevance score**: sales priority for KarayCRM. Based on activity fit, company size, age/maturity, contactability, decision-maker context, usable geography. This answers: "is this worth calling first?"
+
+Do not merge these scores. A lead can be high confidence but low relevance, or low confidence but commercially interesting.
 
 ### Pages
 
@@ -387,7 +395,7 @@ Dark mode. Industrial/utilitarian. No fluff.
 - Confrères: list name/city/effectif/phone/dirigeant, click→detail
 - Buttons: copy script, copy email, push to CRM, mark contacted, archive, notes
 
-**Plan /plan**: "Generate" button, grouped trade/zone, main lead=highlighted "vu terrain", confrères below, numbered order, copy buttons, "Push all to CRM" bulk button, summary top, CSV export
+**Plan /plan**: "Generate" button, grouped trade/zone, main lead=highlighted "vu terrain", confrères below, numbered order, copy buttons, "Envoyer email" mailto button, "Push all to CRM" bulk button, summary top, CSV export
 
 **Settings /settings**: webhook config CRUD (name, URL, headers, trigger, field mapping). Test button → sends sample payload → shows response. Webhook logs table: last 50, status, lead name, timestamp, success/fail badge. Presets: quick-fill URL patterns for Zapier (hooks.zapier.com), Make (hook.eu1.make.com), n8n (self-hosted URL)
 
@@ -395,8 +403,29 @@ Dark mode. Industrial/utilitarian. No fluff.
 
 ### PWA
 ```json
-{"name":"LeadSnap","short_name":"LeadSnap","start_url":"/","display":"standalone","background_color":"#0a0a0a","theme_color":"#22c55e"}
+{"name":"Scovio.io","short_name":"Scovio","start_url":"/","display":"standalone","background_color":"#FAFAF7","theme_color":"#E2503E"}
 ```
+
+## Next Steps
+
+### Domain / Vercel
+- Domain purchased: `scovi.io`.
+- Add `scovi.io` and `www.scovi.io` to the Vercel project.
+- DNS target:
+  - `A @ -> 76.76.21.21`
+  - `CNAME www -> cname.vercel-dns.com`
+- Let Vercel issue SSL, then choose canonical redirect, probably `www.scovi.io -> scovi.io`.
+
+### Email / Resend
+- User has a Resend account.
+- Use a mail subdomain to avoid mixing app hosting and email DNS: recommended `mail.scovi.io`.
+- In Resend, add/verify `mail.scovi.io`, then copy DNS records to registrar.
+- Short-term send path: Supabase Edge Function `send-email` calls Resend API.
+- Sender candidates: `Pablo <pablo@mail.scovi.io>` or `Scovio <hello@mail.scovi.io>`.
+- Reply path options:
+  - Simple: set `reply_to` to an existing mailbox (e.g. Pablo's current mailbox).
+  - CRM inbox: configure Resend inbound/MX for `mail.scovi.io`, point inbound webhook to Supabase, store replies and show them in Scovio.
+- No Google Workspace required.
 
 ## Export
 
@@ -419,7 +448,7 @@ ordre,type,nom_commercial,raison_sociale,metier,ville,departement,telephone,emai
 
 ## Rules
 
-- No auto email sending. Generate only, user copy-pastes.
+- No hidden bulk auto email sending. User-triggered sends only, with clear visible action.
 - APIs only (Sirene, Pappers, Claude). No scraping.
 - B2B data only. No personal data. No face recognition.
 - Photos private in Storage.

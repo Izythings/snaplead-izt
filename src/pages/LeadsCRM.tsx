@@ -1,9 +1,11 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ExternalLink, Filter, Phone, Search, Send } from "lucide-react";
 import ConfidenceBadge from "../components/ConfidenceBadge";
+import RelevanceBadge from "../components/RelevanceBadge";
 import { useLeads } from "../hooks/useLeads";
 import { useToast } from "../components/StatusToast";
 import { leadName } from "../lib/constants";
+import { relevanceScore } from "../lib/relevance";
 import { supabase } from "../lib/supabase";
 import type { LeadStatus, LeadWithCapture } from "../lib/types";
 
@@ -16,17 +18,17 @@ const statusLabels: Record<LeadStatus, string> = {
 };
 
 const scoreOptions = [
-  { value: "all", label: "Tous scores" },
-  { value: "70", label: "70+ fort" },
-  { value: "40", label: "40+ moyen" },
-  { value: "0", label: "Faible inclus" },
+  { value: "all", label: "Toute pertinence" },
+  { value: "75", label: "75+ très pertinent" },
+  { value: "55", label: "55+ pertinent" },
+  { value: "35", label: "35+ à qualifier" },
 ];
 
 const sortOptions = [
   { value: "date-desc", label: "Plus récents" },
   { value: "date-asc", label: "Plus anciens" },
-  { value: "score-desc", label: "Score décroissant" },
-  { value: "score-asc", label: "Score croissant" },
+  { value: "score-desc", label: "Pertinence décroissante" },
+  { value: "score-asc", label: "Pertinence croissante" },
   { value: "name-asc", label: "Entreprise A-Z" },
   { value: "activity-asc", label: "Activité A-Z" },
 ];
@@ -101,7 +103,7 @@ export default function LeadsCRM() {
       if (activity !== "all" && activityOf(lead) !== activity) return false;
       if (status !== "all" && lead.status !== status) return false;
       if (capture && lead.capture_id !== capture) return false;
-      if (score !== "all" && Math.round((lead.confidence_score ?? 0) * 100) < Number(score)) return false;
+      if (score !== "all" && Math.round(relevanceScore(lead) * 100) < Number(score)) return false;
       const created = lead.created_at.slice(0, 10);
       if (from && created < from) return false;
       if (to && created > to) return false;
@@ -109,7 +111,7 @@ export default function LeadsCRM() {
     })
     .sort((a, b) => {
       let result = 0;
-      if (activeSort.field === "score") result = (a.confidence_score ?? 0) - (b.confidence_score ?? 0);
+      if (activeSort.field === "score") result = relevanceScore(a) - relevanceScore(b);
       if (activeSort.field === "date") result = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       if (activeSort.field === "name") result = compareText(leadName(a), leadName(b));
       if (activeSort.field === "activity") result = compareText(activityOf(a), activityOf(b));
@@ -120,8 +122,8 @@ export default function LeadsCRM() {
   const photoLeads = filtered.filter((lead) => lead.is_from_photo).length;
   const toCall = filtered.filter((lead) => lead.status === "actionable" || lead.status === "enriched").length;
   const contacted = filtered.filter((lead) => lead.status === "contacted").length;
-  const avgScore = filtered.length
-    ? Math.round((filtered.reduce((sum, lead) => sum + (lead.confidence_score ?? 0), 0) / filtered.length) * 100)
+  const avgRelevance = filtered.length
+    ? Math.round((filtered.reduce((sum, lead) => sum + relevanceScore(lead), 0) / filtered.length) * 100)
     : 0;
 
   const updateStatus = async (lead: LeadWithCapture, nextStatus: LeadStatus) => {
@@ -157,7 +159,7 @@ export default function LeadsCRM() {
           ["Leads filtrés", filtered.length],
           ["Captures terrain", photoLeads],
           ["À appeler", toCall],
-          ["Score moyen", `${avgScore}/100`],
+          ["Pertinence moyenne", `${avgRelevance}/100`],
         ].map(([label, value]) => (
           <div key={label} className="snap-panel p-4">
             <div className="snap-label">{label}</div>
@@ -211,7 +213,7 @@ export default function LeadsCRM() {
         <div className="grid grid-cols-[1.3fr_1fr_0.6fr_0.8fr_0.8fr_1.2fr] border-b bg-cream px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted max-lg:hidden" style={{ borderColor: "var(--c-line)" }}>
           <SortHeader field="name">Entreprise</SortHeader>
           <SortHeader field="activity">Activité</SortHeader>
-          <SortHeader field="score">Score</SortHeader>
+          <SortHeader field="score">Pertinence</SortHeader>
           <SortHeader field="date">Date</SortHeader>
           <SortHeader field="status">Statut</SortHeader>
           <div className="flex items-center gap-1"><ArrowUpDown size={13} />Actions</div>
@@ -233,7 +235,10 @@ export default function LeadsCRM() {
                   </div>
                 </div>
                 <div className="text-muted lg:text-ink">{activityOf(lead)}</div>
-                <ConfidenceBadge score={lead.confidence_score} />
+                <div className="flex flex-col items-start gap-1">
+                  <RelevanceBadge score={relevanceScore(lead)} />
+                  <ConfidenceBadge score={lead.confidence_score} />
+                </div>
                 <div className="mono text-xs text-muted">{formatDate(lead.created_at)}</div>
                 <div>
                   <span className="rounded bg-cream px-2 py-1 text-xs font-semibold">{statusLabels[lead.status]}</span>

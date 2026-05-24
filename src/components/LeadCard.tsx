@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { leadName } from "../lib/constants";
+import { relevanceScore } from "../lib/relevance";
 import type { LeadWithCapture } from "../lib/types";
 import ConfidenceBadge from "./ConfidenceBadge";
+import RelevanceBadge from "./RelevanceBadge";
 
 export default function LeadCard({ lead, index }: { lead: LeadWithCapture; index?: number }) {
   return (
@@ -14,7 +16,10 @@ export default function LeadCard({ lead, index }: { lead: LeadWithCapture; index
           </div>
           <p className="mt-1 text-sm text-muted">{lead.libelle_naf || lead.activite || "Métier non identifié"}</p>
         </div>
-        <ConfidenceBadge score={lead.confidence_score} />
+        <div className="flex flex-col items-end gap-1">
+          <RelevanceBadge score={relevanceScore(lead)} />
+          <ConfidenceBadge score={lead.confidence_score} />
+        </div>
       </div>
       <div className="grid gap-2 border-t pt-3 text-sm sm:grid-cols-3" style={{ borderColor: "var(--c-line)" }}>
         <div>
