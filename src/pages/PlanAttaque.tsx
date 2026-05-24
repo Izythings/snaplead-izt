@@ -52,7 +52,7 @@ export default function PlanAttaque() {
           }} className="snap-button bg-brick border-brick disabled:opacity-50">
             Générer
           </button>
-          <button onClick={() => downloadCsv("leadsnap-plan.csv", leadsToCsv(leads))} className="snap-button-secondary">
+          <button onClick={() => downloadCsv("scovio-plan.csv", leadsToCsv(leads))} className="snap-button-secondary">
             Export CSV
           </button>
           <button disabled={busy} onClick={pushAll} className="snap-button disabled:opacity-50">

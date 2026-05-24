@@ -22,7 +22,7 @@ export default function Dashboard() {
   return (
     <div className="pb-20">
       <header className="mb-8 border-b pb-8" style={{ borderColor: "var(--c-line)" }}>
-        <div className="text-sm font-semibold text-brick">SnapLead</div>
+        <div className="text-sm font-semibold text-brick">Scovio.io</div>
         <h1 className="snap-title mt-2 text-5xl leading-none md:text-6xl">Plan commercial terrain</h1>
         <p className="snap-copy mt-3 max-w-2xl text-xl">Importer les signaux visuels, identifier les sociétés, générer le plan d’appel KarayCRM.</p>
       </header>

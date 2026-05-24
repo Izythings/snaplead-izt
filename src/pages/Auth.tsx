@@ -35,7 +35,7 @@ export default function Auth() {
     <main className="grid min-h-screen place-items-center bg-ink px-4 text-paper">
       <form onSubmit={submit} className="w-full max-w-sm rounded border border-white/10 bg-white/[0.04] p-5">
         <div className="mb-6">
-          <div className="mb-2 text-2xl font-semibold">SnapLead</div>
+          <div className="mb-2 text-2xl font-semibold">Scovio.io</div>
           <p className="text-sm text-paper/60">Connexion email et mot de passe.</p>
         </div>
         <label className="mb-2 block text-sm text-paper/70">Email</label>

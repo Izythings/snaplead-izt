@@ -264,7 +264,7 @@ export default function LeadDetail() {
           <button onClick={() => updateLead({ status: "contacted" })} className="snap-button bg-good border-good"><Check size={16} />Contacté</button>
           <button onClick={() => updateLead({ status: "archived" })} className="snap-button-secondary"><Archive size={16} />Archiver</button>
           <button disabled={busy} onClick={push} className="snap-button bg-brick border-brick disabled:opacity-50"><Send size={16} />Push CRM</button>
-          <button onClick={() => downloadCsv("leadsnap-lead.csv", leadsToCsv(all))} className="snap-button-secondary"><FileDown size={16} />CSV</button>
+          <button onClick={() => downloadCsv("scovio-lead.csv", leadsToCsv(all))} className="snap-button-secondary"><FileDown size={16} />CSV</button>
           {lead.telephone && <a href={`tel:${lead.telephone.replace(/\s/g, "")}`} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
           {lead.site_web && <a href={lead.site_web.startsWith("http") ? lead.site_web : `https://${lead.site_web}`} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}
         </div>

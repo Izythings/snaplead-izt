@@ -19,7 +19,7 @@ const nav = [
   { to: "/settings", label: "Réglages", icon: Settings },
 ];
 
-const SnapLeadMark = ({ small = false }: { small?: boolean }) => (
+const ScovioMark = ({ small = false }: { small?: boolean }) => (
   <div className={`relative flex ${small ? "h-7 w-7" : "h-9 w-9"} items-center justify-center rounded-md bg-ink text-paper`}>
     <span className="absolute left-1.5 top-1.5 h-2 w-2 border-l-2 border-t-2 border-paper" />
     <span className="absolute bottom-1.5 right-1.5 h-2 w-2 border-b-2 border-r-2 border-paper" />
@@ -32,9 +32,9 @@ const Layout = () => (
   <div className="min-h-screen bg-paper text-ink">
     <aside className="fixed inset-y-0 left-0 hidden w-64 border-r px-4 py-5 md:block" style={{ background: "var(--c-dossier)", borderColor: "var(--c-line)" }}>
       <div className="mb-8 flex items-center gap-3 border-b pb-5" style={{ borderColor: "var(--c-line)" }}>
-        <SnapLeadMark />
+        <ScovioMark />
         <div>
-          <div className="font-bold">SnapLead<span className="text-brick">.</span></div>
+          <div className="font-bold">Scovio.io<span className="text-brick">.</span></div>
           <div className="text-xs text-muted">Terrain → action</div>
         </div>
       </div>
@@ -66,8 +66,8 @@ const Layout = () => (
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <div className="mb-5 flex items-center justify-between border-b pb-4 md:hidden" style={{ borderColor: "var(--c-line)" }}>
           <div className="flex items-center gap-2 font-semibold">
-            <SnapLeadMark small />
-            <span>SnapLead<span className="text-brick">.</span></span>
+            <ScovioMark small />
+            <span>Scovio.io<span className="text-brick">.</span></span>
           </div>
           <NavLink to="/import" className="rounded bg-brick px-3 py-2 text-sm text-white">
             Import
