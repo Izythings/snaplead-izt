@@ -86,7 +86,7 @@ export default function PlanAttaque() {
                   </div>
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ScriptDisplay title="Script principal" content={group.lead_principal.script_appel} />
-                    <ScriptDisplay title="Email principal" content={group.lead_principal.email} />
+                    <ScriptDisplay title="Email principal" content={group.lead_principal.email} emailTo={principal?.email} enableEmail />
                   </div>
                   {group.confreres.length > 0 && (
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
