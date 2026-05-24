@@ -29,6 +29,8 @@ const sortOptions = [
   { value: "date-asc", label: "Plus anciens" },
   { value: "score-desc", label: "Pertinence décroissante" },
   { value: "score-asc", label: "Pertinence croissante" },
+  { value: "confidence-desc", label: "Confiance décroissante" },
+  { value: "confidence-asc", label: "Confiance croissante" },
   { value: "name-asc", label: "Entreprise A-Z" },
   { value: "activity-asc", label: "Activité A-Z" },
 ];
@@ -36,12 +38,12 @@ const sortOptions = [
 const activityOf = (lead: LeadWithCapture) => lead.libelle_naf || lead.activite || "Activité non identifiée";
 const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 
-type SortField = "name" | "activity" | "score" | "date" | "status";
+type SortField = "name" | "activity" | "score" | "confidence" | "date" | "status";
 type SortDirection = "asc" | "desc";
 
 const parseSort = (sort: string): { field: SortField; direction: SortDirection } => {
   const [field, direction] = sort.split("-");
-  const validField = ["name", "activity", "score", "date", "status"].includes(field) ? (field as SortField) : "date";
+  const validField = ["name", "activity", "score", "confidence", "date", "status"].includes(field) ? (field as SortField) : "date";
   const validDirection = direction === "asc" ? "asc" : "desc";
   return { field: validField, direction: validDirection };
 };
@@ -112,6 +114,7 @@ export default function LeadsCRM() {
     .sort((a, b) => {
       let result = 0;
       if (activeSort.field === "score") result = relevanceScore(a) - relevanceScore(b);
+      if (activeSort.field === "confidence") result = (a.confidence_score ?? 0) - (b.confidence_score ?? 0);
       if (activeSort.field === "date") result = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       if (activeSort.field === "name") result = compareText(leadName(a), leadName(b));
       if (activeSort.field === "activity") result = compareText(activityOf(a), activityOf(b));
@@ -210,10 +213,11 @@ export default function LeadsCRM() {
       </section>
 
       <section className="snap-panel overflow-hidden">
-        <div className="grid grid-cols-[1.3fr_1fr_0.6fr_0.8fr_0.8fr_1.2fr] border-b bg-cream px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted max-lg:hidden" style={{ borderColor: "var(--c-line)" }}>
+        <div className="grid grid-cols-[1.25fr_1fr_0.65fr_0.65fr_0.75fr_0.75fr_1.15fr] border-b bg-cream px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted max-lg:hidden" style={{ borderColor: "var(--c-line)" }}>
           <SortHeader field="name">Entreprise</SortHeader>
           <SortHeader field="activity">Activité</SortHeader>
           <SortHeader field="score">Pertinence</SortHeader>
+          <SortHeader field="confidence">Confiance</SortHeader>
           <SortHeader field="date">Date</SortHeader>
           <SortHeader field="status">Statut</SortHeader>
           <div className="flex items-center gap-1"><ArrowUpDown size={13} />Actions</div>
@@ -225,7 +229,7 @@ export default function LeadsCRM() {
         ) : (
           <div className="divide-y" style={{ borderColor: "var(--c-line)" }}>
             {filtered.map((lead) => (
-              <article key={lead.id} className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.3fr_1fr_0.6fr_0.8fr_0.8fr_1.2fr] lg:items-center">
+              <article key={lead.id} className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.25fr_1fr_0.65fr_0.65fr_0.75fr_0.75fr_1.15fr] lg:items-center">
                 <div className="min-w-0">
                   <Link to={`/leads/${lead.id}`} className="font-semibold hover:text-brick">{leadName(lead)}</Link>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
@@ -235,10 +239,8 @@ export default function LeadsCRM() {
                   </div>
                 </div>
                 <div className="text-muted lg:text-ink">{activityOf(lead)}</div>
-                <div className="flex flex-col items-start gap-1">
-                  <RelevanceBadge score={relevanceScore(lead)} />
-                  <ConfidenceBadge score={lead.confidence_score} />
-                </div>
+                <RelevanceBadge score={relevanceScore(lead)} />
+                <ConfidenceBadge score={lead.confidence_score} />
                 <div className="mono text-xs text-muted">{formatDate(lead.created_at)}</div>
                 <div>
                   <span className="rounded bg-cream px-2 py-1 text-xs font-semibold">{statusLabels[lead.status]}</span>

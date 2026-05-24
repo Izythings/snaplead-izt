@@ -26,6 +26,8 @@ test("crm page exposes lead filters and internal actions", async ({ page }) => {
     await expect(page).toHaveURL(/sort=score-asc/);
     await scoreHeader.click();
     await expect(page).toHaveURL(/sort=score-desc/);
+    await page.getByRole("button", { name: /Trier par Confiance/ }).click();
+    await expect(page).toHaveURL(/sort=confidence-asc/);
   }
 });
 
