@@ -19,7 +19,14 @@ test("crm page exposes lead filters and internal actions", async ({ page }) => {
   await expect(page.getByPlaceholder("Rechercher nom, ville, téléphone")).toBeVisible();
   await expect(page.locator("select").first()).toBeVisible();
   await expect(page.getByText("Leads filtrés")).toBeVisible();
-  await expect(page.getByText("Score moyen")).toBeVisible();
+  await expect(page.locator(".snap-panel").filter({ hasText: "Score moyen" }).first()).toBeVisible();
+  const scoreHeader = page.getByRole("button", { name: /Trier par Score/ });
+  if (await scoreHeader.isVisible()) {
+    await scoreHeader.click();
+    await expect(page).toHaveURL(/sort=score-asc/);
+    await scoreHeader.click();
+    await expect(page).toHaveURL(/sort=score-desc/);
+  }
 });
 
 test("import page exposes batch photo workflow", async ({ page }) => {

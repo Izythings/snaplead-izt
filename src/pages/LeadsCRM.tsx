@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowUpDown, CalendarDays, Check, ExternalLink, Filter, Phone, Search, Send } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ExternalLink, Filter, Phone, Search, Send } from "lucide-react";
 import ConfidenceBadge from "../components/ConfidenceBadge";
 import { useLeads } from "../hooks/useLeads";
 import { useToast } from "../components/StatusToast";
@@ -24,12 +24,27 @@ const scoreOptions = [
 
 const sortOptions = [
   { value: "date-desc", label: "Plus récents" },
+  { value: "date-asc", label: "Plus anciens" },
   { value: "score-desc", label: "Score décroissant" },
   { value: "score-asc", label: "Score croissant" },
+  { value: "name-asc", label: "Entreprise A-Z" },
+  { value: "activity-asc", label: "Activité A-Z" },
 ];
 
 const activityOf = (lead: LeadWithCapture) => lead.libelle_naf || lead.activite || "Activité non identifiée";
 const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+
+type SortField = "name" | "activity" | "score" | "date" | "status";
+type SortDirection = "asc" | "desc";
+
+const parseSort = (sort: string): { field: SortField; direction: SortDirection } => {
+  const [field, direction] = sort.split("-");
+  const validField = ["name", "activity", "score", "date", "status"].includes(field) ? (field as SortField) : "date";
+  const validDirection = direction === "asc" ? "asc" : "desc";
+  return { field: validField, direction: validDirection };
+};
+
+const compareText = (a: string, b: string) => a.localeCompare(b, "fr", { sensitivity: "base" });
 
 export default function LeadsCRM() {
   const { leads, loading, reload } = useLeads();
@@ -44,12 +59,34 @@ export default function LeadsCRM() {
   const to = params.get("to") ?? "";
   const sort = params.get("sort") ?? "date-desc";
   const capture = params.get("capture") ?? "";
+  const activeSort = parseSort(sort);
 
   const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     if (!value || value === "all") next.delete(key);
     else next.set(key, value);
     setParams(next, { replace: true });
+  };
+
+  const toggleSort = (field: SortField) => {
+    const direction = activeSort.field === field && activeSort.direction === "asc" ? "desc" : "asc";
+    updateParam("sort", `${field}-${direction}`);
+  };
+
+  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => {
+    const active = activeSort.field === field;
+    const Icon = active ? (activeSort.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(field)}
+        className={`flex items-center gap-1 text-left transition hover:text-ink ${active ? "text-ink" : ""}`}
+        aria-label={`Trier par ${String(children)}`}
+      >
+        <span>{children}</span>
+        <Icon size={13} />
+      </button>
+    );
   };
 
   const activities = Array.from(new Set(leads.map(activityOf))).sort((a, b) => a.localeCompare(b, "fr"));
@@ -71,9 +108,13 @@ export default function LeadsCRM() {
       return true;
     })
     .sort((a, b) => {
-      if (sort === "score-desc") return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
-      if (sort === "score-asc") return (a.confidence_score ?? 0) - (b.confidence_score ?? 0);
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      let result = 0;
+      if (activeSort.field === "score") result = (a.confidence_score ?? 0) - (b.confidence_score ?? 0);
+      if (activeSort.field === "date") result = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (activeSort.field === "name") result = compareText(leadName(a), leadName(b));
+      if (activeSort.field === "activity") result = compareText(activityOf(a), activityOf(b));
+      if (activeSort.field === "status") result = compareText(statusLabels[a.status], statusLabels[b.status]);
+      return activeSort.direction === "asc" ? result : -result;
     });
 
   const photoLeads = filtered.filter((lead) => lead.is_from_photo).length;
@@ -168,11 +209,11 @@ export default function LeadsCRM() {
 
       <section className="snap-panel overflow-hidden">
         <div className="grid grid-cols-[1.3fr_1fr_0.6fr_0.8fr_0.8fr_1.2fr] border-b bg-cream px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted max-lg:hidden" style={{ borderColor: "var(--c-line)" }}>
-          <div>Entreprise</div>
-          <div>Activité</div>
-          <div>Score</div>
-          <div>Date</div>
-          <div>Statut</div>
+          <SortHeader field="name">Entreprise</SortHeader>
+          <SortHeader field="activity">Activité</SortHeader>
+          <SortHeader field="score">Score</SortHeader>
+          <SortHeader field="date">Date</SortHeader>
+          <SortHeader field="status">Statut</SortHeader>
           <div className="flex items-center gap-1"><ArrowUpDown size={13} />Actions</div>
         </div>
         {loading ? (
