@@ -11,6 +11,7 @@ import PlanAttaque from "./pages/PlanAttaque";
 import SettingsPage from "./pages/Settings";
 import Auth from "./pages/Auth";
 import { ToastProvider } from "./components/StatusToast";
+import { AnimatedDock } from "./components/AnimatedDock";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: Home },
@@ -87,14 +88,15 @@ const Layout = () => (
         </Routes>
       </div>
     </main>
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t bg-paper md:hidden" style={{ borderColor: "var(--c-line)" }}>
-      {nav.map((item) => (
-        <NavLink key={item.to} to={item.to} className="flex flex-col items-center gap-1 px-1 py-2 text-[11px]">
-          <item.icon size={17} />
-          {item.label}
-        </NavLink>
-      ))}
-    </nav>
+    <div className="fixed inset-x-0 bottom-3 z-30 flex justify-center px-3 md:hidden">
+      <AnimatedDock
+        items={nav.map((item) => ({
+          to: item.to,
+          label: item.label,
+          icon: <item.icon size={18} />,
+        }))}
+      />
+    </div>
   </div>
 );
 
