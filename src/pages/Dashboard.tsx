@@ -30,7 +30,7 @@ export default function Dashboard() {
         {cards.map(([label, value]) => (
           <div key={label} className="snap-panel p-4">
             <div className="text-sm text-muted">{label}</div>
-            <div className="font-editorial mt-2 text-5xl leading-none">{value}</div>
+            <div className="mt-2 text-5xl font-bold leading-none">{value}</div>
           </div>
         ))}
       </section>

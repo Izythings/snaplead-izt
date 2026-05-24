@@ -34,8 +34,8 @@ const BigScore = ({ score, onOpen }: { score?: number | null; onOpen: () => void
   return (
     <button onClick={onOpen} className="snap-panel block w-full p-6 text-left transition hover:border-brick/60">
       <div className="flex items-baseline gap-1">
-        <div className="font-editorial text-7xl font-light leading-none tracking-[-0.04em]">{pct}</div>
-        <div className="font-editorial text-2xl italic text-muted">/100</div>
+        <div className="text-7xl font-bold leading-none">{pct}</div>
+        <div className="text-2xl font-semibold text-muted">/100</div>
       </div>
       <div className="mt-4 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: color }} />
@@ -162,10 +162,10 @@ export default function LeadDetail() {
             <span className="snap-label">{location}</span>
           </div>
           <div>
-            <h1 className="snap-title text-6xl leading-[0.95] md:text-7xl">{leadName(lead)}</h1>
+            <h1 className="snap-title text-5xl leading-none md:text-6xl">{leadName(lead)}</h1>
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
               <span className="rounded bg-cream px-2 py-1 text-xs font-semibold text-slate">NAF {lead.code_naf || "-"}</span>
-              <span className="font-editorial text-xl italic text-slate">{lead.libelle_naf || lead.activite || "Activité non identifiée"}</span>
+              <span className="text-lg font-semibold text-slate">{lead.libelle_naf || lead.activite || "Activité non identifiée"}</span>
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-3">
@@ -216,7 +216,7 @@ export default function LeadDetail() {
           <div className="h-px" style={{ background: "var(--c-line)" }} />
           <div>
             <div className="snap-label font-semibold text-ink">Angle d'approche recommandé</div>
-            <p className="snap-copy mt-2 text-lg italic">« {lead.angle_approche || "Angle non généré."} »</p>
+            <p className="snap-copy mt-2 text-lg">« {lead.angle_approche || "Angle non généré."} »</p>
           </div>
           <div className="h-px" style={{ background: "var(--c-line)" }} />
           <div className="grid gap-4 sm:grid-cols-3">
