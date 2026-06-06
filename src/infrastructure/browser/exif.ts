@@ -1,4 +1,4 @@
-import exifr from "exifr";
+import exifr from "exifr/dist/lite.esm.mjs";
 
 export type ExifResult = {
   lat: number | null;
@@ -11,7 +11,9 @@ export type ExifResult = {
 
 export const parseExifAndLocation = async (file: File): Promise<ExifResult> => {
   const gps = await exifr.gps(file).catch(() => null);
-  const parsed = await exifr.parse(file, ["DateTimeOriginal", "CreateDate"]).catch(() => null);
+  const parsed = await exifr
+    .parse(file, { exif: { pick: ["DateTimeOriginal", "CreateDate"] } })
+    .catch(() => null);
   const lat = gps?.latitude ?? null;
   const lng = gps?.longitude ?? null;
   const rawDate = parsed?.DateTimeOriginal ?? parsed?.CreateDate ?? null;

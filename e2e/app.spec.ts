@@ -37,6 +37,38 @@ test("import page exposes batch photo workflow", async ({ page }) => {
   await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant compression et upload.")).toBeVisible();
 });
 
+test("import page accepts JPEG and HEIC captures", async ({ page }) => {
+  await page.route("https://api-adresse.data.gouv.fr/**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        features: [{
+          properties: {
+            city: "Paris",
+            context: "75, Paris, Île-de-France",
+            label: "Paris",
+          },
+        }],
+      }),
+    });
+  });
+  await page.goto("/import");
+
+  await page.locator('input[type="file"]').setInputFiles([
+    "e2e/fixtures/capture-sample.jpg",
+    "e2e/fixtures/capture-sample.heic",
+  ]);
+
+  const jpeg = page.locator("article").filter({ hasText: "capture-sample.jpg" });
+  await expect(jpeg).toContainText("Paris");
+  await expect(jpeg).toContainText("48.85667, 2.35222");
+  await expect(jpeg).toContainText("2026");
+
+  const heic = page.locator("article").filter({ hasText: "capture-sample.heic" });
+  await expect(heic).toContainText("GPS absent");
+  await expect(heic).toContainText("Date absente");
+});
+
 test("plan page exposes generation, csv and crm actions", async ({ page }) => {
   await page.goto("/plan");
 
