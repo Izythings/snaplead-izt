@@ -4,18 +4,20 @@ import { useCaptures } from "../hooks/useCaptures";
 export default function Captures() {
   const { captures, loading } = useCaptures();
   return (
-    <div className="pb-20">
-      <header className="mb-6">
-        <div className="text-sm font-medium text-brick">Traitement</div>
-        <h1 className="snap-title text-5xl leading-none md:text-6xl">Captures</h1>
+    <div>
+      <header className="mb-6 border-b border-border pb-6">
+        <div className="snap-label text-ember">Traitement terrain</div>
+        <h1 className="mt-2 text-xl md:text-[30px]">Captures</h1>
+        <p className="snap-copy mt-2 text-sm md:text-base">Galerie des photos analysées et des leads générés.</p>
       </header>
       {loading ? (
-        <div>Chargement</div>
+        <div className="snap-panel p-6 text-muted" role="status">Chargement des captures</div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {captures.map((capture) => (
             <CaptureCard key={capture.id} capture={capture} />
           ))}
+          {captures.length === 0 && <div className="snap-panel p-8 text-center text-muted sm:col-span-2 xl:col-span-3">Aucune capture aujourd'hui.</div>}
         </div>
       )}
     </div>

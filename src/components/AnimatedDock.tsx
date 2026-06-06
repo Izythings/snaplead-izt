@@ -1,78 +1,45 @@
-import * as React from "react";
+import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from "motion/react";
-import clsx from "clsx";
-import { twMerge } from "tailwind-merge";
-
-const cn = (...args: Array<string | false | null | undefined>) => twMerge(clsx(args));
+import { Plus } from "lucide-react";
 
 export type DockItemData = {
   to: string;
   label: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
+  featured?: boolean;
 };
 
-export function AnimatedDock({ className, items }: { className?: string; items: DockItemData[] }) {
-  const mouseX = useMotionValue(Infinity);
-
+export function AnimatedDock({ items }: { className?: string; items: DockItemData[] }) {
   return (
-    <motion.nav
-      onMouseMove={(event) => mouseX.set(event.pageX)}
-      onMouseLeave={() => mouseX.set(Infinity)}
-      className={cn(
-        "mx-auto flex h-16 items-end gap-2 rounded-2xl border bg-white/90 px-3 pb-3 shadow-lg backdrop-blur",
-        className,
-      )}
-      style={{ borderColor: "var(--c-line)" }}
-      aria-label="Navigation mobile"
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-5 border-t border-sidebar-border bg-sidebar/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      aria-label="Navigation principale"
     >
       {items.map((item) => (
-        <DockItem key={item.to} mouseX={mouseX}>
-          <NavLink
-            to={item.to}
-            aria-label={item.label}
-            className={({ isActive }) =>
-              cn(
-                "flex h-full w-full grow items-center justify-center rounded-full text-paper transition",
-                isActive ? "bg-brick text-white" : "bg-ink text-paper",
-              )
-            }
-          >
-            {item.icon}
-          </NavLink>
-        </DockItem>
+        <NavLink
+          key={item.to}
+          to={item.to}
+          aria-label={item.label}
+          className={({ isActive }) =>
+            item.featured
+              ? "relative flex min-h-11 items-center justify-center"
+              : `relative flex min-h-11 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors ${
+                  isActive ? "text-foreground before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:bg-ember" : "text-muted hover:text-foreground"
+                }`
+          }
+        >
+          {item.featured ? (
+            <span className="absolute -top-4 grid h-14 w-14 place-items-center rounded-full bg-ember text-[oklch(var(--ember-foreground))] shadow-[var(--shadow-ember)]">
+              <Plus size={24} aria-hidden="true" />
+            </span>
+          ) : (
+            <>
+              {item.icon}
+              <span>{item.label}</span>
+            </>
+          )}
+        </NavLink>
       ))}
-    </motion.nav>
-  );
-}
-
-function DockItem({ mouseX, children }: { mouseX: MotionValue<number>; children: React.ReactNode }) {
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  const distance = useTransform(mouseX, (value) => {
-    const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
-    return value - bounds.x - bounds.width / 2;
-  });
-
-  const widthSync = useTransform(distance, [-120, 0, 120], [40, 64, 40]);
-  const width = useSpring(widthSync, {
-    mass: 0.1,
-    stiffness: 150,
-    damping: 14,
-  });
-
-  const iconScale = useTransform(width, [40, 64], [1, 1.25]);
-  const iconSpring = useSpring(iconScale, {
-    mass: 0.1,
-    stiffness: 150,
-    damping: 14,
-  });
-
-  return (
-    <motion.div ref={ref} style={{ width }} className="aspect-square w-10 shrink-0 rounded-full">
-      <motion.div style={{ scale: iconSpring }} className="flex h-full w-full items-center justify-center">
-        {children}
-      </motion.div>
-    </motion.div>
+    </nav>
   );
 }

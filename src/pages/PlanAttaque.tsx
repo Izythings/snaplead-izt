@@ -3,9 +3,12 @@ import ScriptDisplay from "../components/ScriptDisplay";
 import { useToast } from "../components/StatusToast";
 import { useLeads } from "../hooks/useLeads";
 import { usePlan } from "../hooks/usePlan";
-import { downloadCsv, leadsToCsv } from "../lib/csv";
-import { leadName } from "../lib/constants";
-import { supabase } from "../lib/supabase";
+import { createLeadActions } from "../application/services/leadActions";
+import { leadName } from "../domain/leads/lead";
+import { downloadCsv, leadsToCsv } from "../infrastructure/browser/csv";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
+
+const leadActions = createLeadActions(supabaseDataGateway);
 
 export default function PlanAttaque() {
   const { plan, generate } = usePlan();
@@ -16,27 +19,19 @@ export default function PlanAttaque() {
 
   const pushAll = async () => {
     setBusy(true);
-    let ok = 0;
-    let ko = 0;
-    for (const lead of leads.filter((item) => item.status === "actionable")) {
-      const { error } = await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
-      if (error) ko += 1;
-      else {
-        ok += 1;
-        await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
-      }
-    }
+    const { ok, ko } = await leadActions.pushActionableLeads(leads);
     if (ko > 0) toast.error("Push bulk terminé avec erreurs", `${ok} OK · ${ko} KO`);
     else toast.success(`${ok} lead(s) poussé(s) au CRM`);
     setBusy(false);
   };
 
   return (
-    <div className="pb-20">
-      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <header className="mb-6 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-sm font-medium text-brick">Demain matin</div>
-          <h1 className="snap-title text-5xl leading-none md:text-6xl">Plan d'attaque</h1>
+          <div className="snap-label text-ember">Aujourd'hui</div>
+          <h1 className="mt-2 text-xl md:text-[30px]">Plan d'appel</h1>
+          <p className="snap-copy mt-2 text-sm md:text-base">Priorités, scripts et séquence commerciale prêts à exécuter.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button disabled={busy} onClick={async () => {
@@ -49,7 +44,7 @@ export default function PlanAttaque() {
             } finally {
               setBusy(false);
             }
-          }} className="snap-button bg-brick border-brick disabled:opacity-50">
+          }} className="snap-button disabled:opacity-50">
             Générer
           </button>
           <button onClick={() => downloadCsv("scovio-plan.csv", leadsToCsv(leads))} className="snap-button-secondary">
@@ -63,8 +58,8 @@ export default function PlanAttaque() {
 
       {content ? (
         <>
-          <section className="mb-5 snap-panel bg-ink p-5 text-paper">
-            <div className="text-sm text-paper/50">{content.date}</div>
+          <section className="snap-panel mb-5 border-ember/20 bg-ember/10 p-5">
+            <div className="text-sm text-muted">{content.date}</div>
             <p className="mt-2 text-xl">{content.resume_journee}</p>
           </section>
           <div className="space-y-5">
@@ -77,7 +72,7 @@ export default function PlanAttaque() {
                       <h2 className="snap-title text-3xl">{group.metier}</h2>
                       <p className="text-muted">{group.zone} · {group.contexte}</p>
                     </div>
-                    <div className="mono rounded bg-paper px-2 py-1 text-sm">{group.ordre_recommande.length} appels</div>
+                    <div className="mono rounded bg-secondary px-2 py-1 text-sm">{group.ordre_recommande.length} appels</div>
                   </div>
                   <div className="snap-panel-alt mb-4 p-4">
                     <div className="text-sm font-medium text-brick">Lead vu terrain</div>

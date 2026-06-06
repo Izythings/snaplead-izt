@@ -1,8 +1,8 @@
 import { useState } from "react";
 import PhotoDropzone, { type PhotoItem } from "../components/PhotoDropzone";
 import { useToast } from "../components/StatusToast";
-import { LOCAL_USER_ID } from "../lib/constants";
-import { supabase } from "../lib/supabase";
+import { importCapture } from "../application/services/importCapture";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
 
 export default function Import() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -11,53 +11,24 @@ export default function Import() {
 
   const uploadAll = async () => {
     setRunning(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id ?? LOCAL_USER_ID;
     let successCount = 0;
     let failCount = 0;
 
     for (const photo of photos) {
       setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "uploading" } : item)));
-      const ext = photo.file.name.split(".").pop() || "jpg";
-      const path = `${userId}/${Date.now()}-${photo.id}.${ext}`;
-      const upload = await supabase.storage.from("captures").upload(path, photo.file, { upsert: false });
-      if (upload.error) {
+      const result = await importCapture(supabaseDataGateway, photo);
+      if (!result.ok) {
         failCount += 1;
-        setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: upload.error.message } : item)));
-        toast.error(`Upload échoué pour ${photo.file.name}`, upload.error.message);
+        setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: result.message } : item)));
+        const title = result.stage === "create"
+          ? `Création capture échouée pour ${photo.file.name}`
+          : result.stage === "process"
+            ? `Traitement échoué pour ${photo.file.name}`
+            : `Upload échoué pour ${photo.file.name}`;
+        toast.error(title, result.message);
         continue;
       }
 
-      const created = await supabase
-        .from("captures")
-        .insert({
-          photo_path: path,
-          exif_lat: photo.exif.lat,
-          exif_lng: photo.exif.lng,
-          exif_taken_at: photo.exif.takenAt,
-          exif_city: photo.exif.city,
-          exif_departement: photo.exif.departement,
-          exif_address: photo.exif.address,
-          status: "pending",
-          user_id: userId,
-        })
-        .select("id")
-        .single();
-
-      if (created.error) {
-        failCount += 1;
-        setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: created.error.message } : item)));
-        toast.error(`Création capture échouée pour ${photo.file.name}`, created.error.message);
-        continue;
-      }
-
-      const processed = await supabase.functions.invoke("process-capture", { body: { capture_id: created.data.id } });
-      if (processed.error) {
-        failCount += 1;
-        setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "failed", error: processed.error.message } : item)));
-        toast.error(`Traitement échoué pour ${photo.file.name}`, processed.error.message);
-        continue;
-      }
       successCount += 1;
       setPhotos((items) => items.map((item) => (item.id === photo.id ? { ...item, status: "done" } : item)));
       toast.success(`Photo traitée: ${photo.file.name}`);
@@ -68,23 +39,24 @@ export default function Import() {
   };
 
   return (
-    <div className="pb-20">
-      <header className="mb-6">
-        <div className="text-sm font-medium text-brick">Import terrain</div>
-        <h1 className="snap-title text-5xl leading-none md:text-6xl">Photos du jour</h1>
+    <div>
+      <header className="mb-6 border-b border-border pb-6">
+        <div className="snap-label text-ember">Import terrain</div>
+        <h1 className="mt-2 text-xl md:text-[30px]">Nouvelle capture</h1>
+        <p className="snap-copy mt-2 text-sm md:text-base">Ajoutez plusieurs vitrines ou panneaux, puis lancez l'analyse en une fois.</p>
       </header>
       <PhotoDropzone onPhotos={(items) => setPhotos((current) => [...items, ...current])} />
       {photos.length > 0 && (
         <>
           <div className="mt-5 flex justify-end">
-            <button disabled={running} onClick={uploadAll} className="snap-button bg-brick border-brick disabled:opacity-50">
+            <button disabled={running} onClick={uploadAll} className="snap-button w-full disabled:opacity-50 sm:w-auto">
               Lancer le traitement
             </button>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {photos.map((photo) => (
               <article key={photo.id} className="snap-panel overflow-hidden">
-                <img src={photo.preview} alt="" className="h-44 w-full object-cover" />
+                <img src={photo.preview} alt={`Aperçu de ${photo.file.name}`} className="h-44 w-full object-cover" />
                 <div className="p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="truncate font-semibold">{photo.file.name}</div>
@@ -95,7 +67,7 @@ export default function Import() {
                     <span className="mono">{photo.exif.lat && photo.exif.lng ? `${photo.exif.lat.toFixed(5)}, ${photo.exif.lng.toFixed(5)}` : "GPS absent"}</span>
                     <span>{photo.exif.takenAt ? new Date(photo.exif.takenAt).toLocaleString("fr-FR") : "Date absente"}</span>
                   </div>
-                  {photo.error && <p className="mt-2 text-sm text-red-700">{photo.error}</p>}
+                  {photo.error && <p className="mt-2 text-sm text-destructive">{photo.error}</p>}
                 </div>
               </article>
             ))}

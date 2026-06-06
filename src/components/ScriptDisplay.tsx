@@ -27,7 +27,7 @@ export default function ScriptDisplay({
   const text = content || "Aucun contenu généré.";
   return (
     <section className="snap-panel overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ background: "var(--c-panelAlt)", borderColor: "var(--c-line)" }}>
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted-surface px-4 py-3">
         <h3 className="font-semibold">{title}</h3>
         <div className="flex flex-wrap justify-end gap-2">
           {enableEmail && (
@@ -38,7 +38,7 @@ export default function ScriptDisplay({
           )}
           <button
             onClick={() => navigator.clipboard.writeText(text)}
-            className="snap-button-secondary bg-white px-2.5 py-1.5 text-xs"
+            className="snap-button-secondary px-2.5 py-1.5 text-xs"
           >
             <Copy size={15} />
             Copier

@@ -2,33 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --background: 0.18 0 0;
+  --foreground: 0.96 0.005 60;
+  --card: 0.22 0.003 60;
+  --card-foreground: 0.96 0.005 60;
+  --popover: 0.23 0.003 60;
+  --popover-foreground: 0.96 0.005 60;
+  --primary: 0.66 0.18 38;
+  --primary-foreground: 0.16 0 0;
+  --secondary: 0.28 0.005 60;
+  --secondary-foreground: 0.96 0.005 60;
+  --muted: 0.26 0.004 60;
+  --muted-foreground: 0.70 0.01 60;
+  --accent: 0.32 0.01 40;
+  --accent-foreground: 0.96 0.005 60;
+  --border: 0.30 0.004 60;
+  --input: 0.28 0.005 60;
+  --ring: 0.66 0.18 38;
+  --sidebar: 0.16 0 0;
+  --sidebar-border: 0.26 0.004 60;
+  --sidebar-accent: 0.24 0.01 38;
+  --ember: 0.66 0.18 38;
+  --ember-foreground: 0.16 0 0;
+  --success: 0.70 0.15 155;
+  --warning: 0.80 0.15 85;
+  --destructive: 0.60 0.21 25;
+  --chart-1: 0.66 0.18 38;
+  --chart-2: 0.70 0.15 155;
+  --chart-3: 0.70 0.13 220;
+  --chart-4: 0.80 0.15 85;
+  --chart-5: 0.65 0.20 320;
+  --radius: 0.75rem;
+  --shadow-elegant: 0 1px 0 0 oklch(0.18 0 0 / 0.6), 0 10px 30px -12px oklch(0 0 0 / 0.5);
+  --shadow-ember: 0 8px 30px -10px oklch(0.62 0.18 38 / 0.45);
+  --gradient-ember: linear-gradient(135deg, oklch(0.66 0.18 38), oklch(0.72 0.15 50));
+
+  /* Legacy aliases kept while the existing screens migrate to semantic tokens. */
+  --c-paper: oklch(var(--background));
+  --c-dossier: oklch(var(--sidebar));
+  --c-panel: oklch(var(--card));
+  --c-panelAlt: oklch(var(--muted));
+  --c-line: oklch(var(--border));
+  --c-lineSoft: oklch(var(--border) / 0.55);
+  --c-ink: oklch(var(--foreground));
+  --c-inkSoft: oklch(var(--foreground) / 0.82);
+  --c-inkMute: oklch(var(--muted-foreground));
+  --c-inkFaint: oklch(var(--muted-foreground) / 0.65);
+  --c-signal: oklch(var(--ember));
+  --c-signalSoft: oklch(var(--ember) / 0.14);
+  --c-confirm: oklch(var(--success));
+  --c-warn: oklch(var(--warning));
+  --c-alert: oklch(var(--destructive));
+}
+
 * {
   box-sizing: border-box;
+  border-color: oklch(var(--border));
+}
+
+html {
+  background: oklch(var(--background));
 }
 
 body {
+  min-width: 320px;
   margin: 0;
-  background: #fafaf7;
-  color: #0e0e10;
-  font-family: "Geist", system-ui, sans-serif;
-}
-
-:root {
-  --c-paper: #fafaf7;
-  --c-dossier: #ffffff;
-  --c-panel: #ffffff;
-  --c-panelAlt: #f4f4f0;
-  --c-line: rgba(14, 14, 16, 0.1);
-  --c-lineSoft: rgba(14, 14, 16, 0.05);
-  --c-ink: #0e0e10;
-  --c-inkSoft: #3f3f46;
-  --c-inkMute: #71717a;
-  --c-inkFaint: #a1a1aa;
-  --c-signal: #e2503e;
-  --c-signalSoft: rgba(226, 80, 62, 0.1);
-  --c-confirm: #15803d;
-  --c-warn: #b45309;
-  --c-alert: #b91c1c;
+  background: oklch(var(--background));
+  color: oklch(var(--foreground));
+  font-family: "Manrope", system-ui, sans-serif;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -38,76 +83,141 @@ select {
   font: inherit;
 }
 
+button,
+a,
+input,
+textarea,
+select {
+  outline: none;
+}
+
+:focus-visible {
+  box-shadow: 0 0 0 2px oklch(var(--background)), 0 0 0 4px oklch(var(--ring));
+}
+
+::selection {
+  background: oklch(var(--ember) / 0.28);
+}
+
 .mono {
-  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .surface {
-  @apply border bg-white;
-  border-color: var(--c-line);
+  @apply border bg-card;
 }
 
 .dark-surface {
-  @apply border bg-ink text-paper;
-  border-color: var(--c-line);
+  @apply border bg-background text-foreground;
 }
 
 .snap-panel {
-  background: var(--c-panel);
-  border: 1px solid var(--c-line);
-  border-radius: 8px;
+  background: oklch(var(--card));
+  border: 1px solid oklch(var(--border));
+  border-radius: var(--radius);
 }
 
 .snap-panel-alt {
-  background: var(--c-panelAlt);
-  border: 1px solid var(--c-line);
-  border-radius: 8px;
+  background: oklch(var(--muted));
+  border: 1px solid oklch(var(--border));
+  border-radius: var(--radius);
 }
 
 .snap-label {
-  color: var(--c-inkMute);
+  color: oklch(var(--muted-foreground));
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
-.snap-title {
-  font-family: "Geist", system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0;
+.snap-title,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Sora", system-ui, sans-serif;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .snap-copy {
-  font-family: "Geist", system-ui, sans-serif;
-  color: var(--c-inkSoft);
-  line-height: 1.45;
+  color: oklch(var(--muted-foreground));
+  line-height: 1.55;
+}
+
+.snap-button,
+.snap-button-secondary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: calc(var(--radius) - 0.25rem);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  transition: color 150ms, background-color 150ms, border-color 150ms, opacity 150ms, transform 150ms;
 }
 
 .snap-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--c-ink);
-  background: var(--c-ink);
-  color: var(--c-paper);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  border: 1px solid oklch(var(--ember));
+  background: oklch(var(--ember));
+  color: oklch(var(--ember-foreground));
+  box-shadow: var(--shadow-ember);
+}
+
+.snap-button:hover {
+  background: oklch(var(--ember) / 0.9);
 }
 
 .snap-button-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--c-line);
-  background: var(--c-panel);
-  color: var(--c-ink);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  border: 1px solid oklch(var(--border));
+  background: oklch(var(--secondary));
+  color: oklch(var(--foreground));
+}
+
+.snap-button-secondary:hover {
+  background: oklch(var(--accent));
+}
+
+.snap-input {
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid oklch(var(--border));
+  border-radius: calc(var(--radius) - 0.25rem);
+  background: oklch(var(--input));
+  color: oklch(var(--foreground));
+}
+
+.shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+
+.shadow-ember {
+  box-shadow: var(--shadow-ember);
+}
+
+@media (min-width: 768px) {
+  .snap-button,
+  .snap-button-secondary {
+    min-height: 2.25rem;
+  }
+
+  .snap-input {
+    min-height: 2.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

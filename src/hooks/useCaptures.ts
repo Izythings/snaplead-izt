@@ -1,29 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Capture } from "../lib/types";
+import { useCallback } from "react";
+import type { Capture } from "../domain/shared/types";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
+import { useRealtimeResource } from "../presentation/hooks/useRealtimeResource";
 
 export const useCaptures = () => {
-  const [captures, setCaptures] = useState<Capture[]>([]);
-  const [loading, setLoading] = useState(true);
+  const loadCaptures = useCallback(() => supabaseDataGateway.fetchCaptures(), []);
+  const { data, loading, reload } = useRealtimeResource<Capture[]>(loadCaptures, "captures-realtime", "captures");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from("captures").select("*").order("created_at", { ascending: false });
-    if (!error) setCaptures((data ?? []) as Capture[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-    const channel = supabase
-      .channel("captures-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "captures" }, () => load())
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [load]);
-
-  return { captures, loading, reload: load };
+  return { captures: data ?? [], loading, reload };
 };

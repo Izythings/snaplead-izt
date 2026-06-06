@@ -1,4 +1,4 @@
-import { confidenceLabel } from "../lib/constants";
+import { confidenceLabel } from "../domain/shared/constants";
 
 export default function ConfidenceBadge({ score }: { score?: number | null }) {
   const meta = confidenceLabel(score);

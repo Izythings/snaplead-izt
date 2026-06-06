@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Plan } from "../lib/types";
+import type { Plan } from "../domain/shared/types";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
 
 export const usePlan = () => {
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -8,14 +8,16 @@ export const usePlan = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("plans").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (!error) setPlan(data as Plan | null);
+    try {
+      setPlan(await supabaseDataGateway.fetchLatestPlan());
+    } catch {
+      setPlan(null);
+    }
     setLoading(false);
   }, []);
 
   const generate = async () => {
-    const { data, error } = await supabase.functions.invoke("generate-plan");
-    if (error) throw error;
+    const data = await supabaseDataGateway.invokeGeneratePlan();
     await load();
     return data;
   };

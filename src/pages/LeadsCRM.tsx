@@ -1,21 +1,17 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ExternalLink, Filter, Phone, Search, Send } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Check, ExternalLink, Filter, Flame, Phone, Search, Send, Users } from "lucide-react";
 import ConfidenceBadge from "../components/ConfidenceBadge";
-import RelevanceBadge from "../components/RelevanceBadge";
+import ScoreChip from "../components/ScoreChip";
+import StatusBadge from "../components/StatusBadge";
+import StatCard from "../components/StatCard";
+import LeadCard from "../components/LeadCard";
 import { useLeads } from "../hooks/useLeads";
 import { useToast } from "../components/StatusToast";
-import { leadName } from "../lib/constants";
-import { relevanceScore } from "../lib/relevance";
-import { supabase } from "../lib/supabase";
-import type { LeadStatus, LeadWithCapture } from "../lib/types";
-
-const statusLabels: Record<LeadStatus, string> = {
-  identified: "Identifié",
-  enriched: "Enrichi",
-  actionable: "À contacter",
-  contacted: "Contacté",
-  archived: "Archivé",
-};
+import { createLeadActions } from "../application/services/leadActions";
+import { activityOf, compareText, formatLeadDate, leadName, phoneHref, statusLabels, websiteHref } from "../domain/leads/lead";
+import { relevanceScore } from "../domain/leads/relevance";
+import type { LeadStatus, LeadWithCapture } from "../domain/shared/types";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
 
 const scoreOptions = [
   { value: "all", label: "Toute pertinence" },
@@ -35,9 +31,6 @@ const sortOptions = [
   { value: "activity-asc", label: "Activité A-Z" },
 ];
 
-const activityOf = (lead: LeadWithCapture) => lead.libelle_naf || lead.activite || "Activité non identifiée";
-const formatDate = (value: string) => new Date(value).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-
 type SortField = "name" | "activity" | "score" | "confidence" | "date" | "status";
 type SortDirection = "asc" | "desc";
 
@@ -48,7 +41,7 @@ const parseSort = (sort: string): { field: SortField; direction: SortDirection }
   return { field: validField, direction: validDirection };
 };
 
-const compareText = (a: string, b: string) => a.localeCompare(b, "fr", { sensitivity: "base" });
+const leadActions = createLeadActions(supabaseDataGateway);
 
 export default function LeadsCRM() {
   const { leads, loading, reload } = useLeads();
@@ -130,9 +123,10 @@ export default function LeadsCRM() {
     : 0;
 
   const updateStatus = async (lead: LeadWithCapture, nextStatus: LeadStatus) => {
-    const { error } = await supabase.from("leads").update({ status: nextStatus }).eq("id", lead.id);
-    if (error) {
-      toast.error("Statut non modifié", error.message);
+    try {
+      await leadActions.updateLead(lead.id, { status: nextStatus });
+    } catch (error) {
+      toast.error("Statut non modifié", error instanceof Error ? error.message : String(error));
       return;
     }
     toast.success(`${leadName(lead)} passé en ${statusLabels[nextStatus]}`);
@@ -140,121 +134,122 @@ export default function LeadsCRM() {
   };
 
   return (
-    <div className="pb-24">
-      <header className="mb-6 border-b pb-6" style={{ borderColor: "var(--c-line)" }}>
-        <div className="snap-label text-brick">CRM interne</div>
-        <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="snap-title text-5xl leading-none md:text-6xl">Leads</h1>
-            <p className="snap-copy mt-2 max-w-2xl text-base">
-              Base commerciale issue des captures terrain et des confrères similaires.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link to="/import" className="snap-button bg-brick border-brick">Nouvelle capture</Link>
-            <Link to="/plan" className="snap-button-secondary"><Send size={16} />Plan d'appel</Link>
-          </div>
+    <div>
+      <header className="mb-6 flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="snap-label text-ember">CRM interne</div>
+          <h1 className="mt-2 text-xl md:text-[30px]">Leads</h1>
+          <p className="snap-copy mt-2 max-w-2xl text-sm md:text-base">Base commerciale issue des captures terrain et des entreprises similaires.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/plan" className="snap-button-secondary"><Send size={16} />Plan d'appel</Link>
+          <Link to="/import" className="snap-button">Nouvelle capture</Link>
         </div>
       </header>
 
-      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Leads filtrés", filtered.length],
-          ["Captures terrain", photoLeads],
-          ["À appeler", toCall],
-          ["Pertinence moyenne", `${avgRelevance}/100`],
-        ].map(([label, value]) => (
-          <div key={label} className="snap-panel p-4">
-            <div className="snap-label">{label}</div>
-            <div className="mt-2 text-3xl font-bold">{value}</div>
-          </div>
-        ))}
+      <section className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Leads filtrés" value={filtered.length} icon={Users} />
+        <StatCard label="Captures terrain" value={photoLeads} icon={Search} />
+        <StatCard label="À appeler" value={toCall} icon={Phone} />
+        <StatCard label="Score moyen" value={`${avgRelevance}/100`} icon={Flame} />
       </section>
 
-      <section className="snap-panel mb-5 p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Filter size={16} className="text-brick" />
-          <div className="snap-label text-ink">Filtres</div>
-          {capture && <button onClick={() => updateParam("capture", "")} className="ml-auto text-sm font-medium text-brick">Retirer le filtre capture</button>}
+      <section className="sticky top-14 z-20 -mx-4 mb-5 border-y border-border bg-background/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 md:top-16 lg:-mx-8 lg:px-8">
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          {[
+            ["all", "Tous", leads.length],
+            ["identified", "Nouveaux", leads.filter((lead) => lead.status === "identified").length],
+            ["actionable", "À appeler", leads.filter((lead) => lead.status === "actionable").length],
+            ["contacted", "Contactés", contacted],
+          ].map(([value, label, count]) => (
+            <button
+              key={String(value)}
+              onClick={() => updateParam("status", String(value))}
+              className={`min-h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-colors ${
+                status === value || (value === "all" && status === "all") ? "border-ember/40 bg-ember/15 text-ember" : "border-border bg-card text-muted hover:text-foreground"
+              }`}
+            >
+              {label} <span className="ml-1 opacity-70">{count}</span>
+            </button>
+          ))}
         </div>
-        <div className="grid gap-3 lg:grid-cols-[1.3fr_1fr_1fr_0.8fr_0.8fr_1fr]">
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(240px,1fr)_repeat(5,auto)]">
           <label className="relative">
+            <span className="sr-only">Rechercher des leads</span>
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              value={query}
-              onChange={(event) => updateParam("q", event.target.value)}
-              placeholder="Rechercher nom, ville, téléphone"
-              className="w-full rounded-md border bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brick"
-              style={{ borderColor: "var(--c-line)" }}
-            />
+            <input value={query} onChange={(event) => updateParam("q", event.target.value)} placeholder="Nom, ville, téléphone…" className="snap-input py-2 pl-9 pr-3 text-sm" />
           </label>
-          <select value={activity} onChange={(event) => updateParam("activity", event.target.value)} className="rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }}>
+          <select aria-label="Activité" value={activity} onChange={(event) => updateParam("activity", event.target.value)} className="snap-input px-3 text-sm md:w-40">
             <option value="all">Toutes activités</option>
             {activities.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
-          <select value={status} onChange={(event) => updateParam("status", event.target.value)} className="rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }}>
-            <option value="all">Tous statuts</option>
-            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <select value={score} onChange={(event) => updateParam("score", event.target.value)} className="rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }}>
+          <select aria-label="Score minimum" value={score} onChange={(event) => updateParam("score", event.target.value)} className="snap-input px-3 text-sm md:w-40">
             {scoreOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
           <label className="relative">
+            <span className="sr-only">Date de début</span>
             <CalendarDays size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input type="date" value={from} onChange={(event) => updateParam("from", event.target.value)} className="w-full rounded-md border bg-white py-2 pl-9 pr-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }} />
+            <input type="date" value={from} onChange={(event) => updateParam("from", event.target.value)} className="snap-input py-2 pl-9 pr-2 text-sm md:w-40" />
           </label>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <input type="date" value={to} onChange={(event) => updateParam("to", event.target.value)} className="min-w-0 rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }} />
-            <select value={sort} onChange={(event) => updateParam("sort", event.target.value)} aria-label="Tri" className="rounded-md border bg-white px-2 py-2 text-sm outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }}>
-              {sortOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-          </div>
+          <input aria-label="Date de fin" type="date" value={to} onChange={(event) => updateParam("to", event.target.value)} className="snap-input px-3 text-sm md:w-40" />
+          <select value={sort} onChange={(event) => updateParam("sort", event.target.value)} aria-label="Tri" className="snap-input px-3 text-sm md:w-48">
+            {sortOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
         </div>
+        {capture && <button onClick={() => updateParam("capture", "")} className="mt-3 inline-flex min-h-9 items-center gap-2 text-xs font-semibold text-ember"><Filter size={14} />Retirer le filtre capture</button>}
       </section>
 
-      <section className="snap-panel overflow-hidden">
-        <div className="grid grid-cols-[1.25fr_1fr_0.65fr_0.65fr_0.75fr_0.75fr_1.15fr] border-b bg-cream px-4 py-3 text-xs font-semibold uppercase tracking-[0.06em] text-muted max-lg:hidden" style={{ borderColor: "var(--c-line)" }}>
-          <SortHeader field="name">Entreprise</SortHeader>
-          <SortHeader field="activity">Activité</SortHeader>
-          <SortHeader field="score">Pertinence</SortHeader>
-          <SortHeader field="confidence">Confiance</SortHeader>
-          <SortHeader field="date">Date</SortHeader>
-          <SortHeader field="status">Statut</SortHeader>
-          <div className="flex items-center gap-1"><ArrowUpDown size={13} />Actions</div>
-        </div>
-        {loading ? (
-          <div className="p-6 text-muted">Chargement des leads</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-6 text-muted">Aucun lead ne correspond aux filtres.</div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: "var(--c-line)" }}>
-            {filtered.map((lead) => (
-              <article key={lead.id} className="grid gap-3 px-4 py-4 text-sm lg:grid-cols-[1.25fr_1fr_0.65fr_0.65fr_0.75fr_0.75fr_1.15fr] lg:items-center">
-                <div className="min-w-0">
-                  <Link to={`/leads/${lead.id}`} className="font-semibold hover:text-brick">{leadName(lead)}</Link>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-                    <span>{lead.ville || lead.departement || "Zone inconnue"}</span>
-                    {lead.telephone && <span className="mono">{lead.telephone}</span>}
-                    {lead.is_from_photo ? <span>Photo</span> : <span>Confrère</span>}
-                  </div>
-                </div>
-                <div className="text-muted lg:text-ink">{activityOf(lead)}</div>
-                <RelevanceBadge score={relevanceScore(lead)} />
-                <ConfidenceBadge score={lead.confidence_score} />
-                <div className="mono text-xs text-muted">{formatDate(lead.created_at)}</div>
-                <div>
-                  <span className="rounded bg-cream px-2 py-1 text-xs font-semibold">{statusLabels[lead.status]}</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {lead.telephone && <a href={`tel:${lead.telephone.replace(/\s/g, "")}`} className="snap-button-secondary py-1.5 text-xs"><Phone size={14} />Appeler</a>}
-                  {lead.site_web && <a href={lead.site_web.startsWith("http") ? lead.site_web : `https://${lead.site_web}`} target="_blank" rel="noreferrer" className="snap-button-secondary py-1.5 text-xs"><ExternalLink size={14} />Site</a>}
-                  {lead.status !== "contacted" && <button onClick={() => updateStatus(lead, "contacted")} className="snap-button py-1.5 text-xs"><Check size={14} />Contacté</button>}
-                </div>
-              </article>
-            ))}
+      {loading ? (
+        <div className="snap-panel p-6 text-muted" role="status">Chargement des leads</div>
+      ) : filtered.length === 0 ? (
+        <div className="snap-panel grid min-h-60 place-items-center p-6 text-center">
+          <div>
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary text-muted"><Search size={22} /></span>
+            <h2 className="mt-4 text-lg">Aucun lead pour ce filtre</h2>
+            <p className="mt-1 text-sm text-muted">Modifiez la recherche ou réinitialisez les filtres.</p>
+            <button onClick={() => setParams({}, { replace: true })} className="snap-button mt-4">Réinitialiser</button>
           </div>
-        )}
-      </section>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2 lg:hidden">
+            {filtered.map((lead) => <LeadCard key={lead.id} lead={lead} />)}
+          </div>
+
+          <section className="snap-panel hidden overflow-hidden lg:block">
+            <div className="grid h-11 grid-cols-[1.35fr_1fr_0.65fr_0.75fr_0.7fr_1.1fr] items-center border-b border-border bg-muted-surface/60 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted">
+              <SortHeader field="name">Entreprise</SortHeader>
+              <SortHeader field="activity">Activité</SortHeader>
+              <SortHeader field="score">Score</SortHeader>
+              <SortHeader field="date">Date</SortHeader>
+              <SortHeader field="status">Statut</SortHeader>
+              <div>Actions</div>
+            </div>
+            <div className="divide-y divide-border">
+              {filtered.map((lead) => (
+                <article key={lead.id} className="grid min-h-[52px] grid-cols-[1.35fr_1fr_0.65fr_0.75fr_0.7fr_1.1fr] items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-muted-surface/30">
+                  <div className="min-w-0">
+                    <Link to={`/leads/${lead.id}`} className="truncate font-semibold hover:text-ember">{leadName(lead)}</Link>
+                    <div className="mt-0.5 truncate text-xs text-muted">{lead.ville || lead.departement || "Zone inconnue"} {lead.telephone ? `· ${lead.telephone}` : ""}</div>
+                  </div>
+                  <div className="truncate text-muted">{activityOf(lead)}</div>
+                  <div className="flex items-center gap-1.5">
+                    <ScoreChip score={relevanceScore(lead)} label="Pertinence" />
+                    <ConfidenceBadge score={lead.confidence_score} />
+                  </div>
+                  <div className="mono text-xs text-muted">{formatLeadDate(lead.created_at)}</div>
+                  <StatusBadge status={lead.status} />
+                  <div className="flex gap-1">
+                    {lead.telephone && <a href={phoneHref(lead.telephone)} className="grid h-9 w-9 place-items-center rounded-md text-muted hover:bg-accent hover:text-ember" aria-label={`Appeler ${leadName(lead)}`}><Phone size={15} /></a>}
+                    {lead.site_web && <a href={websiteHref(lead.site_web)} target="_blank" rel="noreferrer" className="grid h-9 w-9 place-items-center rounded-md text-muted hover:bg-accent hover:text-ember" aria-label={`Ouvrir le site de ${leadName(lead)}`}><ExternalLink size={15} /></a>}
+                    {lead.status !== "contacted" && <button onClick={() => updateStatus(lead, "contacted")} className="inline-flex h-9 items-center gap-1 rounded-md bg-secondary px-2 text-xs font-semibold hover:bg-accent"><Check size={14} />Contacté</button>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

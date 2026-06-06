@@ -1,7 +1,7 @@
-import { UploadCloud } from "lucide-react";
+import { Camera, UploadCloud } from "lucide-react";
 import { useRef, useState } from "react";
-import { parseExifAndLocation, type ExifResult } from "../lib/exif";
-import { prepareImageForVision } from "../lib/image";
+import { parseExifAndLocation, type ExifResult } from "../infrastructure/browser/exif";
+import { prepareImageForVision } from "../infrastructure/browser/image";
 
 export type PhotoItem = {
   id: string;
@@ -43,22 +43,29 @@ export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoIt
         event.preventDefault();
         void handleFiles(event.dataTransfer.files);
       }}
-      className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed bg-white p-8 text-center"
-      style={{ borderColor: "var(--c-line)" }}
+      className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-6 text-center transition-colors hover:border-ember/50 hover:bg-accent/30"
       onClick={() => inputRef.current?.click()}
     >
-      <UploadCloud className="mb-3 text-brick" size={34} />
-      <div className="font-semibold">Déposer les photos terrain</div>
+      <span className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-secondary text-ember">
+        <Camera size={28} aria-hidden="true" />
+      </span>
+      <div className="font-display text-lg font-semibold">Prendre ou déposer des photos</div>
       <p className="mt-1 max-w-md text-sm text-muted">Multi-photo, EXIF GPS et date extraits avant compression et upload.</p>
+      <span className="snap-button pointer-events-none mt-5">
+        <UploadCloud size={17} aria-hidden="true" />
+        Choisir les photos
+      </span>
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
         multiple
+        capture="environment"
         className="hidden"
+        aria-label="Choisir des photos terrain"
         onChange={(event) => event.target.files && void handleFiles(event.target.files)}
       />
-      {loading && <div className="mt-3 text-sm text-brick">Lecture EXIF en cours</div>}
+      {loading && <div className="mt-3 text-sm font-semibold text-ember" role="status">Lecture EXIF en cours</div>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { relevanceLabel } from "../lib/relevance";
+import { relevanceLabel } from "../domain/leads/relevance";
 
 export default function RelevanceBadge({ score }: { score?: number | null }) {
   const meta = relevanceLabel(score);

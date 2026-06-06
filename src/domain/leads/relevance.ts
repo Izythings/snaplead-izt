@@ -1,4 +1,4 @@
-import type { LeadWithCapture } from "./types";
+import type { LeadWithCapture } from "../shared/types";
 
 const TARGET_ACTIVITY_TERMS = [
   "clim",
@@ -127,10 +127,10 @@ export const relevanceScore = (lead: LeadWithCapture) => {
 
 export const relevanceLabel = (score?: number | null) => {
   const value = score ?? 0;
-  if (value >= 0.75) return { label: "Très pertinent", color: "text-good", bg: "bg-good/10", border: "border-good/30" };
-  if (value >= 0.55) return { label: "Pertinent", color: "text-brick", bg: "bg-brick/10", border: "border-brick/30" };
-  if (value >= 0.35) return { label: "À qualifier", color: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/30" };
-  return { label: "Hors cible", color: "text-red-600", bg: "bg-red-500/10", border: "border-red-500/30" };
+  if (value >= 0.75) return { label: "Très pertinent", color: "text-success", bg: "bg-success/10", border: "border-success/30" };
+  if (value >= 0.55) return { label: "Pertinent", color: "text-ember", bg: "bg-ember/10", border: "border-ember/30" };
+  if (value >= 0.35) return { label: "À qualifier", color: "text-warning", bg: "bg-warning/10", border: "border-warning/30" };
+  return { label: "Hors cible", color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" };
 };
 
 export const relevancePercent = (lead: LeadWithCapture) => pct(relevanceScore(lead));

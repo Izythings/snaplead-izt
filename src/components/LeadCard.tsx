@@ -1,40 +1,41 @@
 import { Link } from "react-router-dom";
-import { leadName } from "../lib/constants";
-import { relevanceScore } from "../lib/relevance";
-import type { LeadWithCapture } from "../lib/types";
-import ConfidenceBadge from "./ConfidenceBadge";
-import RelevanceBadge from "./RelevanceBadge";
+import { Mail, Phone } from "lucide-react";
+import { leadName } from "../domain/leads/lead";
+import { relevanceScore } from "../domain/leads/relevance";
+import type { LeadWithCapture } from "../domain/shared/types";
+import ScoreChip from "./ScoreChip";
+import StatusBadge from "./StatusBadge";
 
 export default function LeadCard({ lead, index }: { lead: LeadWithCapture; index?: number }) {
   return (
-    <Link to={`/leads/${lead.id}`} className="snap-panel block p-4 transition hover:border-brick/50">
-      <div className="mb-3 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            {index !== undefined && <span className="mono text-xs text-muted">{String(index + 1).padStart(2, "0")}</span>}
-            <h3 className="snap-title text-xl">{leadName(lead)}</h3>
+    <article className="snap-panel transition-colors hover:border-ember/30">
+      <div className="flex items-start gap-2 px-4 py-3">
+        {index !== undefined && <span className="mono mt-1 text-xs text-muted">{String(index + 1).padStart(2, "0")}</span>}
+        <Link to={`/leads/${lead.id}`} className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-[15px] font-semibold">{leadName(lead)}</h3>
+              <p className="mt-1 truncate text-xs text-muted">{lead.libelle_naf || lead.activite || "Métier non identifié"} · {lead.ville || lead.departement || "Zone inconnue"}</p>
+            </div>
+            <ScoreChip score={relevanceScore(lead)} label="Pertinence" />
           </div>
-          <p className="mt-1 text-sm text-muted">{lead.libelle_naf || lead.activite || "Métier non identifié"}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <RelevanceBadge score={relevanceScore(lead)} />
-          <ConfidenceBadge score={lead.confidence_score} />
-        </div>
-      </div>
-      <div className="grid gap-2 border-t pt-3 text-sm sm:grid-cols-3" style={{ borderColor: "var(--c-line)" }}>
-        <div>
-          <span className="text-muted">Ville</span>
-          <div>{lead.ville || lead.departement || "-"}</div>
-        </div>
-        <div>
-          <span className="text-muted">Téléphone</span>
-          <div className="mono">{lead.telephone || "-"}</div>
-        </div>
-        <div>
-          <span className="text-muted">Statut</span>
-          <div>{lead.status}</div>
+          <div className="mt-3">
+            <StatusBadge status={lead.status} />
+          </div>
+        </Link>
+        <div className="flex shrink-0">
+          {lead.telephone && (
+            <a href={`tel:${lead.telephone.replace(/\s/g, "")}`} className="grid h-11 w-10 place-items-center rounded-md text-muted hover:bg-accent hover:text-ember" aria-label={`Appeler ${leadName(lead)}`}>
+              <Phone size={17} />
+            </a>
+          )}
+          {lead.email && (
+            <a href={`mailto:${lead.email}`} className="grid h-11 w-10 place-items-center rounded-md text-muted hover:bg-accent hover:text-ember" aria-label={`Envoyer un email à ${leadName(lead)}`}>
+              <Mail size={17} />
+            </a>
+          )}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }

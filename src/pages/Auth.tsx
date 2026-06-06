@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../infrastructure/supabase/client";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -32,30 +32,32 @@ export default function Auth() {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center bg-ink px-4 text-paper">
-      <form onSubmit={submit} className="w-full max-w-sm rounded border border-white/10 bg-white/[0.04] p-5">
+    <main className="grid min-h-screen place-items-center bg-background px-4 text-foreground">
+      <form onSubmit={submit} className="snap-panel w-full max-w-sm p-6 shadow-[var(--shadow-elegant)]">
         <div className="mb-6">
           <div className="mb-2 text-2xl font-semibold">Scovio.io</div>
-          <p className="text-sm text-paper/60">Connexion email et mot de passe.</p>
+          <p className="text-sm text-muted">Connexion email et mot de passe.</p>
         </div>
-        <label className="mb-2 block text-sm text-paper/70">Email</label>
+        <label htmlFor="auth-email" className="mb-2 block text-sm font-medium">Email</label>
         <input
+          id="auth-email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           type="email"
           required
-          className="mb-3 w-full rounded border border-white/10 bg-white px-3 py-2 text-ink outline-none focus:border-brick"
+          className="snap-input mb-3 px-3 py-2"
         />
-        <label className="mb-2 block text-sm text-paper/70">Mot de passe</label>
+        <label htmlFor="auth-password" className="mb-2 block text-sm font-medium">Mot de passe</label>
         <input
+          id="auth-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           type="password"
           required
           minLength={6}
-          className="mb-3 w-full rounded border border-white/10 bg-white px-3 py-2 text-ink outline-none focus:border-brick"
+          className="snap-input mb-3 px-3 py-2"
         />
-        <button disabled={loading} className="w-full rounded bg-brick px-4 py-2 font-medium text-white disabled:opacity-60">
+        <button disabled={loading} className="snap-button w-full disabled:opacity-60">
           {loading ? "Connexion" : mode === "signin" ? "Se connecter" : "Créer le compte"}
         </button>
         <button
@@ -65,12 +67,12 @@ export default function Auth() {
             setError("");
             setMessage("");
           }}
-          className="mt-3 w-full rounded border border-white/10 px-4 py-2 text-sm text-paper/80 hover:bg-white/10"
+          className="snap-button-secondary mt-3 w-full"
         >
           {mode === "signin" ? "Créer un compte" : "J'ai déjà un compte"}
         </button>
         {message && <p className="mt-3 text-sm text-good">{message}</p>}
-        {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+        {error && <p className="mt-3 text-sm text-destructive" role="alert">{error}</p>}
       </form>
     </main>
   );

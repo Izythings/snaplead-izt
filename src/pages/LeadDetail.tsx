@@ -6,11 +6,12 @@ import LeadCard from "../components/LeadCard";
 import RelevanceBadge from "../components/RelevanceBadge";
 import ScriptDisplay from "../components/ScriptDisplay";
 import { useToast } from "../components/StatusToast";
-import { downloadCsv, leadsToCsv } from "../lib/csv";
-import { leadName } from "../lib/constants";
-import { relevanceFactors, relevanceScore } from "../lib/relevance";
-import { supabase } from "../lib/supabase";
-import type { LeadWithCapture } from "../lib/types";
+import { createLeadActions } from "../application/services/leadActions";
+import { leadName, phoneHref, websiteHref } from "../domain/leads/lead";
+import { relevanceFactors, relevanceScore } from "../domain/leads/relevance";
+import type { Lead, LeadWithCapture } from "../domain/shared/types";
+import { downloadCsv, leadsToCsv } from "../infrastructure/browser/csv";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
 
 const Field = ({ label, value, mono = false }: { label: string; value?: string | number | null; mono?: boolean }) => (
   <div className="min-w-0">
@@ -58,12 +59,12 @@ const ScoreDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () =>
   const factors = scoreFactors(lead);
   const pct = Math.round((lead.confidence_score ?? 0) * 100);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4" onClick={onClose}>
-      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm" onClick={onClose} role="presentation">
+      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-[var(--shadow-elegant)]" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="confidence-dialog-title">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="snap-label text-brick">Justification du scoring</div>
-            <h2 className="snap-title mt-1 text-4xl">{pct}/100</h2>
+            <h2 id="confidence-dialog-title" className="mt-1 text-2xl">{pct}/100</h2>
           </div>
           <button onClick={onClose} className="snap-button-secondary px-3 py-1.5 text-sm">Fermer</button>
         </div>
@@ -92,12 +93,12 @@ const RelevanceDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: (
   const factors = relevanceFactors(lead);
   const pct = Math.round(relevanceScore(lead) * 100);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4" onClick={onClose}>
-      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm" onClick={onClose} role="presentation">
+      <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-[var(--shadow-elegant)]" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="relevance-dialog-title">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="snap-label text-brick">Pertinence commerciale</div>
-            <h2 className="snap-title mt-1 text-4xl">{pct}/100</h2>
+            <h2 id="relevance-dialog-title" className="mt-1 text-2xl">{pct}/100</h2>
           </div>
           <button onClick={onClose} className="snap-button-secondary px-3 py-1.5 text-sm">Fermer</button>
         </div>
@@ -121,6 +122,8 @@ const RelevanceDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: (
   );
 };
 
+const leadActions = createLeadActions(supabaseDataGateway);
+
 export default function LeadDetail() {
   const { id } = useParams();
   const [lead, setLead] = useState<LeadWithCapture | null>(null);
@@ -133,23 +136,37 @@ export default function LeadDetail() {
 
   const load = async () => {
     if (!id) return;
-    const { data } = await supabase.from("leads").select("*, captures(*)").eq("id", id).single();
-    const nextLead = data as LeadWithCapture | null;
-    setLead(nextLead);
-    setNotes(nextLead?.notes ?? "");
-    const { data: peers } = await supabase.from("leads").select("*, captures(*)").eq("parent_lead_id", id).order("created_at");
-    setConfreres((peers ?? []) as LeadWithCapture[]);
+    try {
+      const { lead: nextLead, confreres: nextConfreres } = await supabaseDataGateway.fetchLeadDetail(id);
+      setLead(nextLead);
+      setNotes(nextLead?.notes ?? "");
+      setConfreres(nextConfreres);
+    } catch (error) {
+      toast.error("Chargement lead échoué", error instanceof Error ? error.message : String(error));
+    }
   };
 
   useEffect(() => {
     void load();
   }, [id]);
 
-  const updateLead = async (payload: Partial<LeadWithCapture>) => {
+  useEffect(() => {
+    const closeDialogs = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setScoreOpen(false);
+        setRelevanceOpen(false);
+      }
+    };
+    window.addEventListener("keydown", closeDialogs);
+    return () => window.removeEventListener("keydown", closeDialogs);
+  }, []);
+
+  const updateLead = async (payload: Partial<Lead>) => {
     if (!lead) return;
-    const { error } = await supabase.from("leads").update(payload).eq("id", lead.id);
-    if (error) {
-      toast.error("Mise à jour lead échouée", error.message);
+    try {
+      await leadActions.updateLead(lead.id, payload);
+    } catch (error) {
+      toast.error("Mise à jour lead échouée", error instanceof Error ? error.message : String(error));
       return;
     }
     toast.success("Lead mis à jour");
@@ -159,12 +176,12 @@ export default function LeadDetail() {
   const push = async () => {
     if (!lead) return;
     setBusy(true);
-    const { error } = await supabase.functions.invoke("webhook-push", { body: { lead_id: lead.id, trigger: "manual" } });
-    if (error) toast.error("Push CRM échoué", error.message);
-    else {
-      await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
+    try {
+      await leadActions.pushLead(lead.id);
       toast.success("Lead poussé au CRM");
       await load();
+    } catch (error) {
+      toast.error("Push CRM échoué", error instanceof Error ? error.message : String(error));
     }
     setBusy(false);
   };
@@ -172,9 +189,12 @@ export default function LeadDetail() {
   const searchConfreres = async () => {
     if (!lead) return;
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("search-confreres", { body: { lead_id: lead.id } });
-    if (error) toast.error("Recherche confrères échouée", error.message);
-    else toast.success(`${data?.created ?? 0} confrère(s) ajouté(s)`);
+    try {
+      const data = await leadActions.searchConfreres(lead.id);
+      toast.success(`${data?.created ?? 0} confrère(s) ajouté(s)`);
+    } catch (error) {
+      toast.error("Recherche confrères échouée", error instanceof Error ? error.message : String(error));
+    }
     await load();
     setBusy(false);
   };
@@ -186,7 +206,7 @@ export default function LeadDetail() {
   const location = lead.captures?.exif_address || [lead.ville, lead.departement].filter(Boolean).join(" · ") || "Zone inconnue";
 
   return (
-    <div className="pb-24">
+    <div>
       <Link to="/" className="mb-4 inline-block text-sm font-medium text-brick">Retour</Link>
 
       <header className="mb-6 grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
@@ -198,7 +218,7 @@ export default function LeadDetail() {
             <span className="snap-label">{location}</span>
           </div>
           <div>
-            <h1 className="snap-title text-5xl leading-none md:text-6xl">{leadName(lead)}</h1>
+            <h1 className="text-2xl leading-tight md:text-[30px]">{leadName(lead)}</h1>
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
               <span className="rounded bg-cream px-2 py-1 text-xs font-semibold text-slate">NAF {lead.code_naf || "-"}</span>
               <span className="text-lg font-semibold text-slate">{lead.libelle_naf || lead.activite || "Activité non identifiée"}</span>
@@ -286,7 +306,7 @@ export default function LeadDetail() {
 
       <section className="mb-7">
         <div className="mb-4 flex items-end justify-between">
-          <h2 className="snap-title text-4xl">Prochaines actions</h2>
+          <h2 className="text-xl">Prochaines actions</h2>
           <span className="snap-label">Tout est prêt à copier-coller</span>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -296,16 +316,16 @@ export default function LeadDetail() {
       </section>
 
       <section className="snap-panel p-4">
-        <label className="mb-2 block font-semibold">Notes</label>
-        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-28 w-full rounded border p-3 outline-none focus:border-brick" style={{ borderColor: "var(--c-line)" }} />
+        <label htmlFor="lead-notes" className="mb-2 block font-semibold">Notes</label>
+        <textarea id="lead-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Note rapide après appel…" className="snap-input min-h-28 p-3" />
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={() => updateLead({ notes })} className="snap-button-secondary">Enregistrer</button>
           <button onClick={() => updateLead({ status: "contacted" })} className="snap-button bg-good border-good"><Check size={16} />Contacté</button>
           <button onClick={() => updateLead({ status: "archived" })} className="snap-button-secondary"><Archive size={16} />Archiver</button>
           <button disabled={busy} onClick={push} className="snap-button bg-brick border-brick disabled:opacity-50"><Send size={16} />Push CRM</button>
           <button onClick={() => downloadCsv("scovio-lead.csv", leadsToCsv(all))} className="snap-button-secondary"><FileDown size={16} />CSV</button>
-          {lead.telephone && <a href={`tel:${lead.telephone.replace(/\s/g, "")}`} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
-          {lead.site_web && <a href={lead.site_web.startsWith("http") ? lead.site_web : `https://${lead.site_web}`} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}
+          {lead.telephone && <a href={phoneHref(lead.telephone)} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
+          {lead.site_web && <a href={websiteHref(lead.site_web)} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}
         </div>
       </section>
       {scoreOpen && <ScoreDetails lead={lead} onClose={() => setScoreOpen(false)} />}

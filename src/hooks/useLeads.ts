@@ -1,34 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { LeadWithCapture } from "../lib/types";
+import { useCallback } from "react";
+import type { LeadWithCapture } from "../domain/shared/types";
+import { supabaseDataGateway } from "../infrastructure/supabase/repository";
+import { useRealtimeResource } from "../presentation/hooks/useRealtimeResource";
 
 export const useLeads = (onlyPhoto = false) => {
-  const [leads, setLeads] = useState<LeadWithCapture[]>([]);
-  const [loading, setLoading] = useState(true);
+  const loadLeads = useCallback(() => supabaseDataGateway.fetchLeads(onlyPhoto), [onlyPhoto]);
+  const { data, loading, reload } = useRealtimeResource<LeadWithCapture[]>(loadLeads, "leads-realtime", "leads");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from("leads")
-      .select("*, captures(*)")
-      .order("created_at", { ascending: false });
-    if (onlyPhoto) query = query.eq("is_from_photo", true);
-    const { data, error } = await query;
-    if (!error) setLeads((data ?? []) as LeadWithCapture[]);
-    setLoading(false);
-  }, [onlyPhoto]);
-
-  useEffect(() => {
-    load();
-    const channel = supabase
-      .channel("leads-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => load())
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [load]);
-
-  return { leads, loading, reload: load };
+  return { leads: data ?? [], loading, reload };
 };

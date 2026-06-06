@@ -1,5 +1,5 @@
-import { CSV_HEADERS } from "./constants";
-import type { LeadWithCapture } from "./types";
+import { CSV_HEADERS } from "../../domain/shared/constants";
+import type { LeadWithCapture } from "../../domain/shared/types";
 
 const clean = (value: unknown) => {
   if (value === null || value === undefined) return "";
