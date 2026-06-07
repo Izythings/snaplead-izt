@@ -3,12 +3,8 @@ import ScriptDisplay from "../components/ScriptDisplay";
 import { useToast } from "../components/StatusToast";
 import { useLeads } from "../hooks/useLeads";
 import { usePlan } from "../hooks/usePlan";
-import { createLeadActions } from "../application/services/leadActions";
 import { leadName } from "../domain/leads/lead";
 import { downloadCsv, leadsToCsv } from "../infrastructure/browser/csv";
-import { supabaseDataGateway } from "../infrastructure/supabase/repository";
-
-const leadActions = createLeadActions(supabaseDataGateway);
 
 export default function PlanAttaque() {
   const { plan, generate } = usePlan();
@@ -16,14 +12,6 @@ export default function PlanAttaque() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const content = plan?.contenu;
-
-  const pushAll = async () => {
-    setBusy(true);
-    const { ok, ko } = await leadActions.pushActionableLeads(leads);
-    if (ko > 0) toast.error("Push bulk terminé avec erreurs", `${ok} OK · ${ko} KO`);
-    else toast.success(`${ok} lead(s) poussé(s) au CRM`);
-    setBusy(false);
-  };
 
   return (
     <div>
@@ -49,9 +37,6 @@ export default function PlanAttaque() {
           </button>
           <button onClick={() => downloadCsv("scovio-plan.csv", leadsToCsv(leads))} className="snap-button-secondary">
             Export CSV
-          </button>
-          <button disabled={busy} onClick={pushAll} className="snap-button disabled:opacity-50">
-            Push all
           </button>
         </div>
       </header>

@@ -62,21 +62,15 @@ export const relevanceFactors = (lead: LeadWithCapture): RelevanceFactor[] => {
   const targetHit = TARGET_ACTIVITY_TERMS.some((term) => activity.includes(normalize(term)));
   const excludedHit = EXCLUDED_ACTIVITY_TERMS.some((term) => activity.includes(normalize(term)));
   const effectif = parseEffectif(lead.effectif, lead.tranche_effectif_code);
+  const reviewCount = lead.gbp_review_count ?? 0;
+  const highActivity = reviewCount >= 15 || (effectif?.min ?? 0) >= 3;
   const ageYear = parseYear(lead.date_creation);
   const age = ageYear ? new Date().getFullYear() - ageYear : null;
   const hasContact = Boolean(lead.telephone || lead.email || lead.site_web);
   const hasDecisionContext = Boolean(lead.dirigeant || lead.raison_sociale);
   const local = Boolean(lead.departement || lead.ville || lead.adresse_siege || lead.captures?.exif_departement);
 
-  const sizeScore = effectif
-    ? effectif.max <= 10
-      ? 1
-      : effectif.min <= 19
-        ? 0.75
-        : effectif.min <= 49
-          ? 0.35
-          : 0.1
-    : 0.45;
+  const activityVolumeScore = highActivity ? 1 : effectif || lead.gbp_review_count != null ? 0.35 : 0.45;
 
   const ageScore = age === null ? 0.45 : age >= 2 && age <= 20 ? 1 : age > 20 ? 0.65 : 0.35;
 
@@ -88,10 +82,13 @@ export const relevanceFactors = (lead: LeadWithCapture): RelevanceFactor[] => {
       score: targetHit ? 1 : excludedHit ? 0.05 : 0.45,
     },
     {
-      label: "Taille entreprise",
-      detail: effectif ? `${effectif.min}-${effectif.max} salarié(s)` : "Effectif inconnu",
+      label: "Volume d'activité",
+      detail: [
+        effectif ? `${effectif.min}-${effectif.max} salarié(s)` : "effectif inconnu",
+        lead.gbp_review_count != null ? `${reviewCount} avis Google` : "avis Google inconnus",
+      ].join(" · "),
       weight: 0.25,
-      score: sizeScore,
+      score: activityVolumeScore,
     },
     {
       label: "Âge / maturité",

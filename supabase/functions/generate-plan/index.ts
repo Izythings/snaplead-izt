@@ -1,5 +1,6 @@
 import { adminClient, callClaude, extractJson } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
+import { hasHighActivity } from "../_shared/digital.ts";
 import { karayCrmContext } from "../_shared/sales-context.ts";
 
 const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
@@ -22,9 +23,23 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: true });
     if (error) throw error;
 
+    const prioritizedLeads = (leads ?? [])
+      .map((lead: any) => ({
+        ...lead,
+        high_activity: hasHighActivity(lead.gbp_review_count, lead.effectif, lead.tranche_effectif_code),
+      }))
+      .sort((a: any, b: any) => Number(b.high_activity) - Number(a.high_activity));
+
     const prompt = `${karayCrmContext}
 
 B2B sales assistant. Given terrain leads + confreres, generate attack plan for tomorrow for Pablo/KarayCRM.
+Keep the two qualification axes separate:
+- high_activity controls priority. A lead is high activity when it has at least 15 Google reviews or at least 3 employees.
+- digital_segment and suggested_offer control the sales angle, not priority.
+- mature_visible: pitch KarayCRM alone as the missing operational layer.
+- gbp_sans_site: lead with the missing website, then pitch the website + KarayCRM package.
+- invisible: low priority only when high_activity is false; if high_activity is true, still prioritize the CRM need.
+- inconnu: require manual verification and do not assert Google or website facts.
 Per trade/zone group:
 - Lead principal: personalized angle that naturally mentions the terrain sighting, 30s call script, 3-4 line email
 - Confreres: sector approach by trade/zone, call script each
@@ -43,7 +58,7 @@ Return strict JSON:
   }],
   "resume_journee": "2 sentence summary"
 }
-Leads: ${JSON.stringify(leads ?? [])}`;
+Leads, already sorted with high activity first: ${JSON.stringify(prioritizedLeads)}`;
 
     const content = extractJson(await callClaude([{ type: "text", text: prompt }], 3000));
     const leadIds = Array.from(new Set((leads ?? []).map((lead: any) => lead.id)));

@@ -35,7 +35,28 @@ const defaultPayload = (lead: any) => ({
     photo_lng: lead.captures?.exif_lng ?? null,
     photo_time: lead.captures?.exif_taken_at ?? null,
     notes: lead.notes,
+    contact_first_name: lead.contact_first_name,
+    contact_last_name: lead.contact_last_name,
+    contact_job_title: lead.contact_job_title,
+    contact_linkedin: lead.contact_linkedin,
+    campaign_status: lead.campaign_status,
   },
+});
+
+const campaignPayload = (lead: any) => ({
+  leadId: lead.id,
+  email: lead.email,
+  firstName: lead.contact_first_name ?? "",
+  lastName: lead.contact_last_name ?? "",
+  company: lead.nom_commercial ?? lead.raison_sociale ?? "",
+  jobTitle: lead.contact_job_title ?? "",
+  subject: lead.angle_approche ?? `Prise de contact avec ${lead.nom_commercial ?? lead.raison_sociale ?? "votre entreprise"}`,
+  body: lead.email_prospection ?? "",
+  siret: lead.siret ?? "",
+  siren: lead.siren ?? "",
+  callbackUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/campaign-status`,
+  callbackAuthorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") ?? ""}`,
+  callbackToken: Deno.env.get("CAMPAIGN_CALLBACK_SECRET") ?? "",
 });
 
 const mappedPayload = (lead: any, mapping: Record<string, string>) => {
@@ -50,6 +71,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const trigger = body.trigger ?? "manual";
+    const isCampaign = body.campaign === true;
     const authHeader = req.headers.get("authorization") ?? "";
     const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     const userId = userData.user?.id ?? LOCAL_USER_ID;
@@ -81,7 +103,7 @@ Deno.serve(async (req) => {
 
     const results = [];
     for (const config of configs ?? []) {
-      const payload = mappedPayload(lead, config.field_mapping ?? {});
+      const payload = isCampaign ? campaignPayload(lead) : mappedPayload(lead, config.field_mapping ?? {});
       let status = 0;
       let responseBody = "";
       let success = false;
@@ -108,8 +130,19 @@ Deno.serve(async (req) => {
       });
       results.push({ config_id: config.id, status, success });
     }
-    if (!body.test && lead.id && results.some((result) => result.success)) {
-      await supabase.from("leads").update({ pushed_at: new Date().toISOString() }).eq("id", lead.id);
+    if (!body.test && lead.id) {
+      const now = new Date().toISOString();
+      const campaignUpdate = isCampaign
+        ? results.some((result) => result.success)
+          ? { campaign_status: "queued", campaign_started_at: now, campaign_last_event_at: now, campaign_error: null }
+          : { campaign_status: "failed", campaign_last_event_at: now, campaign_error: results.length === 0 ? "Aucun webhook actif configuré" : "Le webhook n8n a répondu en erreur" }
+        : {};
+      if (results.some((result) => result.success) || isCampaign) {
+        await supabase.from("leads").update({
+          ...campaignUpdate,
+          ...(results.some((result) => result.success) ? { pushed_at: now } : {}),
+        }).eq("id", lead.id);
+      }
     }
     return json({ results });
   } catch (error) {

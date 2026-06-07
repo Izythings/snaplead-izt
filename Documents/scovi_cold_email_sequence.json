@@ -1,0 +1,618 @@
+{
+  "name": "scovi_cold_email_sequence",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Séquence cold email — Scovi → Workspace\n\n**Avant de l'activer :**\n1. Crée une credential **Gmail OAuth2** dans n8n connectée à ton compte Workspace.\n2. Assigne cette credential aux 5 nœuds Gmail (Send / Reply / Get).\n3. Dans Scovi > Réglages, crée un webhook manuel avec l'URL de production du nœud **Scovi lead in**.\n4. Dans Supabase, configure le secret `CAMPAIGN_CALLBACK_SECRET` puis redéploie `webhook-push` et `campaign-status`. Le secret est transmis à n8n par Scovi.\n5. Active le workflow.\n\nScovi envoie l'email, le contact, le message et les informations de callback. Les nœuds **Statut Scovi** remontent automatiquement J0, J+3, J+7 et les réponses dans le CRM.\n\nLes relances partent dans le même fil que le J0. Le workflow s'arrête dès qu'une réponse du prospect est détectée.",
+        "height": 460,
+        "width": 420
+      },
+      "id": "bc3c1477-5289-4e8d-926e-8f48537110cb",
+      "name": "LIRE D'ABORD",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scovi-lead",
+        "options": {}
+      },
+      "id": "23bc7f28-95cf-4803-b084-0e21cd128a74",
+      "name": "Scovi lead in",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -112
+      ],
+      "webhookId": "5cfc78e9-0b22-435b-8cdc-f72a974af834"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.email }}",
+        "subject": "={{ $json.body.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body.body }}",
+        "options": {}
+      },
+      "id": "f4864c5a-9368-4b9c-b712-bfe2244ffa39",
+      "name": "Envoi J0",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1504,
+        -112
+      ],
+      "webhookId": "31abaafe-c230-41e5-85d9-10e2baf68e76",
+      "notes": "Premier mail. Assigne la credential Gmail OAuth2 de pablo@karaycrm.fr."
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "58b5ddc3-bc79-4d87-bdc8-e6b4ebd85702",
+      "name": "Attente J+3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        -112
+      ],
+      "webhookId": "wait-j3"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "filters": {
+          "q": "={{ 'from:' + $('Scovi lead in').item.json.body.email + ' newer_than:5d' }}"
+        }
+      },
+      "id": "18d621e6-6dc5-479f-9b3a-3cd546e3ae97",
+      "name": "Réponse reçue ? (1)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1952,
+        -112
+      ],
+      "alwaysOutputData": true,
+      "webhookId": "672d8457-9a6e-4851-bbbe-f5d4ab9a7a0e",
+      "notes": "Cherche un mail entrant du prospect depuis 5 jours. alwaysOutputData = ON pour gérer le cas 0 réponse."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Détermine s'il y a une réponse, et transporte les infos du lead\nconst items = $input.all();\nconst hasReply = items.some(i => i.json && i.json.id);\nconst lead = $('Scovi lead in').first().json.body;\nconst originalMessageId = $('Envoi J0').first().json.id;\nreturn [{ json: { ...lead, hasReply, originalMessageId } }];"
+      },
+      "id": "94561562-5a92-45bc-a022-d3e261995074",
+      "name": "A répondu ? (1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.hasReply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8404f06b-e6b0-4db0-9514-33af00d50a0b",
+      "name": "Pas de réponse ? (1)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2384,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.originalMessageId }}",
+        "emailType": "text",
+        "message": "=Bonjour,\n\nJe me permets de revenir brièvement vers vous au sujet de {{ $json.company }}.\nAvez-vous eu un moment pour y jeter un œil ? Si ce n'est pas le bon timing, dites-le moi simplement.\n\nBien à vous,\nPablo — KarayCRM",
+        "options": {}
+      },
+      "id": "c0c70135-c65e-4c29-8a75-910fe51b152b",
+      "name": "Relance 1 (J+3)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2608,
+        -192
+      ],
+      "webhookId": "2dab7555-ab4b-4508-a8f1-5091feebb8da"
+    },
+    {
+      "parameters": {},
+      "id": "a09a39e7-022a-40f2-9c96-7db3ee76adc8",
+      "name": "Stop : a répondu",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "days"
+      },
+      "id": "fc704991-f7c7-4ec1-9cbb-3dce1f0daea3",
+      "name": "Attente J+7",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2832,
+        -192
+      ],
+      "webhookId": "wait-j7"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "filters": {
+          "q": "={{ 'from:' + $('Scovi lead in').item.json.body.email + ' newer_than:5d' }}"
+        }
+      },
+      "id": "bdf8496e-309e-4596-b63e-a4f722b12e86",
+      "name": "Réponse reçue ? (2)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3040,
+        -192
+      ],
+      "alwaysOutputData": true,
+      "webhookId": "8790d1a8-e8b9-4d76-9ea5-329ffc164beb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst hasReply = items.some(i => i.json && i.json.id);\nconst lead = $('Scovi lead in').first().json.body;\nconst originalMessageId = $('Envoi J0').first().json.id;\nreturn [{ json: { ...lead, hasReply, originalMessageId } }];"
+      },
+      "id": "3397324a-0b92-4b0c-85bd-9269ecc23bb7",
+      "name": "A répondu ? (2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.hasReply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "927ed492-e467-43fe-bc9b-1102ce081ece",
+      "name": "Pas de réponse ? (2)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3488,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.originalMessageId }}",
+        "emailType": "text",
+        "message": "=Bonjour,\n\nJe ne vais pas vous importuner davantage. Si le sujet n'est pas d'actualité pour {{ $json.company }}, aucun souci — je reste joignable si jamais ça évolue.\n\nBien à vous,\nPablo — KarayCRM\n\nRépondez STOP pour ne plus être contacté.",
+        "options": {}
+      },
+      "id": "36058fbe-649f-4b75-ab6c-7f313fd19ef5",
+      "name": "Relance 2 (J+7, clôture)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3712,
+        -272
+      ],
+      "webhookId": "4b6f1d66-dfad-400f-badf-f412ef031ea2"
+    },
+    {
+      "parameters": {},
+      "id": "050b75f0-68ed-4fd7-a778-53c340c79222",
+      "name": "Stop : a répondu (2)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3712,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Scovi lead in').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackAuthorization }}"
+            },
+            {
+              "name": "x-campaign-secret",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ lead_id: $('Scovi lead in').first().json.body.leadId, status: 'sent', execution_id: $execution.id }) }}",
+        "options": {}
+      },
+      "id": "status-j0-scovi",
+      "name": "Statut Scovi : J0 envoyé",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1728,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Scovi lead in').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackAuthorization }}"
+            },
+            {
+              "name": "x-campaign-secret",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ lead_id: $('Scovi lead in').first().json.body.leadId, status: 'follow_up_1', execution_id: $execution.id }) }}",
+        "options": {}
+      },
+      "id": "status-j3-scovi",
+      "name": "Statut Scovi : relance J+3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2832,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Scovi lead in').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackAuthorization }}"
+            },
+            {
+              "name": "x-campaign-secret",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ lead_id: $('Scovi lead in').first().json.body.leadId, status: 'follow_up_2', execution_id: $execution.id }) }}",
+        "options": {}
+      },
+      "id": "status-j7-scovi",
+      "name": "Statut Scovi : relance J+7",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3936,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Scovi lead in').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackAuthorization }}"
+            },
+            {
+              "name": "x-campaign-secret",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ lead_id: $('Scovi lead in').first().json.body.leadId, status: 'replied', execution_id: $execution.id }) }}",
+        "options": {}
+      },
+      "id": "status-reply-j3-scovi",
+      "name": "Statut Scovi : réponse avant J+3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2608,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Scovi lead in').first().json.body.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackAuthorization }}"
+            },
+            {
+              "name": "x-campaign-secret",
+              "value": "={{ $('Scovi lead in').first().json.body.callbackToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ lead_id: $('Scovi lead in').first().json.body.leadId, status: 'replied', execution_id: $execution.id }) }}",
+        "options": {}
+      },
+      "id": "status-reply-j7-scovi",
+      "name": "Statut Scovi : réponse avant J+7",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3712,
+        -96
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scovi lead in": {
+      "main": [
+        [
+          {
+            "node": "Envoi J0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoi J0": {
+      "main": [
+        [
+          {
+            "node": "Statut Scovi : J0 envoyé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statut Scovi : J0 envoyé": {
+      "main": [
+        [
+          {
+            "node": "Attente J+3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attente J+3": {
+      "main": [
+        [
+          {
+            "node": "Réponse reçue ? (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réponse reçue ? (1)": {
+      "main": [
+        [
+          {
+            "node": "A répondu ? (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A répondu ? (1)": {
+      "main": [
+        [
+          {
+            "node": "Pas de réponse ? (1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pas de réponse ? (1)": {
+      "main": [
+        [
+          {
+            "node": "Relance 1 (J+3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Statut Scovi : réponse avant J+3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relance 1 (J+3)": {
+      "main": [
+        [
+          {
+            "node": "Statut Scovi : relance J+3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statut Scovi : relance J+3": {
+      "main": [
+        [
+          {
+            "node": "Attente J+7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attente J+7": {
+      "main": [
+        [
+          {
+            "node": "Réponse reçue ? (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réponse reçue ? (2)": {
+      "main": [
+        [
+          {
+            "node": "A répondu ? (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A répondu ? (2)": {
+      "main": [
+        [
+          {
+            "node": "Pas de réponse ? (2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pas de réponse ? (2)": {
+      "main": [
+        [
+          {
+            "node": "Relance 2 (J+7, clôture)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Statut Scovi : réponse avant J+7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relance 2 (J+7, clôture)": {
+      "main": [
+        [
+          {
+            "node": "Statut Scovi : relance J+7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e9258a76-b5a5-4ef3-a80e-cf3fb7c0ff56",
+  "meta": {
+    "instanceId": "1285278985d402d00d51e77ee68ecb317f8a624666e61e9e4604bfa0c228fe03"
+  },
+  "id": "sYadLs8egM4tcjDb",
+  "tags": []
+}

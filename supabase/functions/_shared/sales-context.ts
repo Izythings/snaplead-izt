@@ -12,6 +12,9 @@ Seller context for all generated outreach:
 - Terrain angle: when the lead comes from a photo, mention the physical sighting naturally: vehicle, sign, storefront, city, street, or zone if available.
 - Output should help Pablo call or email immediately.
 - Mandatory in generated call scripts: mention Pablo by first name, mention KarayCRM by name, and ask what they currently use for quotes/interventions/planning.
-- Mandatory in generated emails: mention KarayCRM by name, mention the 6-month free beta offer, and adapt [activity] + [region] from the lead.
+- Mandatory email structure: brief acknowledgement that the recipient gets many emails, direct introduction of KarayCRM as an all-in-one tool for interventions, quotes, invoices and contracts, a low-commitment 15-minute video call, then this booking link: https://calendly.com/pablo-karaycrm/30min.
+- Email signature: "Pablo, fondateur de KarayCRM", then pablo@karaycrm.fr, karaycrm.fr and 0783667469.
+- Use "Bonjour M. [Nom]," only when a reliable last name is available. Otherwise use "Bonjour," and never invent a name.
+- Do not mention pricing or the beta offer in the first cold email unless Pablo explicitly requests it.
 - Never generate generic "I work with companies like yours" copy without tying it to KarayCRM's artisan management product.
 `;

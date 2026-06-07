@@ -3,6 +3,7 @@ import type { Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog, W
 export type LeadDetailData = {
   lead: LeadWithCapture | null;
   confreres: LeadWithCapture[];
+  contacts: LeadWithCapture[];
 };
 
 export type WebhookSettingsData = {
@@ -37,9 +38,11 @@ export type DataGateway = {
   fetchLatestPlan(): Promise<Plan | null>;
   fetchLeadDetail(leadId: string): Promise<LeadDetailData>;
   updateLead(leadId: string, payload: Partial<Lead>): Promise<void>;
+  importLeads(payload: Array<Partial<Lead> & { import_key: string }>): Promise<{ imported: number }>;
   markLeadPushed(leadId: string): Promise<void>;
   invokeWebhookPush(body: Record<string, unknown>): Promise<unknown>;
   invokeSearchConfreres(leadId: string): Promise<{ created?: number }>;
+  invokeQualifyLeads(leadIds: string[], scope: "lead" | "contacts" | "both"): Promise<{ qualified?: number }>;
   invokeGeneratePlan(): Promise<unknown>;
   uploadCapturePhoto(photo: CaptureUploadInput): Promise<{ id: string }>;
   processCapture(captureId: string): Promise<void>;

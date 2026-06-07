@@ -2,6 +2,20 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type CaptureStatus = "pending" | "processing" | "done" | "failed";
 export type LeadStatus = "identified" | "enriched" | "actionable" | "contacted" | "archived";
+export type QualificationStatus = "pending" | "qualified" | "failed";
+export type DigitalSegment = "mature_visible" | "gbp_sans_site" | "invisible" | "inconnu";
+export type SuggestedOffer = "crm" | "package_site_crm" | "crm_low_prio" | "manuel";
+export type CampaignStatus =
+  | "not_started"
+  | "ready"
+  | "queued"
+  | "sent"
+  | "follow_up_1"
+  | "follow_up_2"
+  | "replied"
+  | "completed"
+  | "failed"
+  | "stopped";
 export type WebhookTrigger = "manual" | "on_enriched" | "on_actionable" | "on_contacted";
 
 export type Capture = {
@@ -56,6 +70,38 @@ export type Lead = {
   pushed_at: string | null;
   is_from_photo: boolean;
   parent_lead_id: string | null;
+  import_key: string | null;
+  source_external_id: string | null;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
+  contact_job_title: string | null;
+  contact_linkedin: string | null;
+  company_linkedin: string | null;
+  campaign_status: CampaignStatus;
+  campaign_started_at: string | null;
+  campaign_last_event_at: string | null;
+  campaign_replied_at: string | null;
+  campaign_error: string | null;
+  campaign_execution_id: string | null;
+  company_qualification_status: QualificationStatus;
+  company_qualification_score: number | null;
+  company_qualification_reason: string | null;
+  company_qualified_at: string | null;
+  contact_qualification_status: QualificationStatus;
+  contact_qualification_score: number | null;
+  contact_qualification_role: string | null;
+  contact_qualification_reason: string | null;
+  contact_qualified_at: string | null;
+  website_url: string | null;
+  has_website: boolean | null;
+  gbp_place_id: string | null;
+  gbp_rating: number | null;
+  gbp_review_count: number | null;
+  gbp_business_status: string | null;
+  gbp_maps_url: string | null;
+  digital_segment: DigitalSegment | null;
+  suggested_offer: SuggestedOffer | null;
+  digital_checked_at: string | null;
   user_id: string;
 };
 

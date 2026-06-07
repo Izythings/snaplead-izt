@@ -16,9 +16,13 @@ test("crm page exposes lead filters and internal actions", async ({ page }) => {
   await page.goto("/leads");
 
   await expect(page.getByRole("heading", { name: "Leads" })).toBeVisible();
-  await expect(page.getByPlaceholder("Nom, ville, téléphone…")).toBeVisible();
+  await expect(page.getByPlaceholder("Entreprise, contact, email…")).toBeVisible();
   await expect(page.locator("select").first()).toBeVisible();
-  await expect(page.getByText("Leads filtrés")).toBeVisible();
+  await expect(page.getByText("Lignes filtrées")).toBeVisible();
+  await expect(page.getByText("Entreprises", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Code NAF" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Qualification" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Campagne" })).toBeVisible();
   await expect(page.locator(".snap-panel").filter({ hasText: "Score moyen" }).first()).toBeVisible();
   const scoreHeader = page.getByRole("button", { name: /Trier par Score/ });
   if (await scoreHeader.isVisible()) {
@@ -27,14 +31,37 @@ test("crm page exposes lead filters and internal actions", async ({ page }) => {
     await scoreHeader.click();
     await expect(page).toHaveURL(/sort=score-desc/);
   }
+
+  const firstRowCheckbox = page.getByRole("checkbox", { name: /^Sélectionner (?!les résultats)/ }).first();
+  if (await firstRowCheckbox.isVisible()) {
+    await firstRowCheckbox.check();
+    await expect(page.getByRole("button", { name: "Qualifier" })).toBeVisible();
+    await page.getByRole("button", { name: "Qualifier" }).click();
+    await expect(page.getByRole("button", { name: "Leads uniquement" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Contacts uniquement" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Leads et contacts" })).toBeVisible();
+  }
 });
 
 test("import page exposes batch photo workflow", async ({ page }) => {
   await page.goto("/import");
 
-  await expect(page.getByRole("heading", { name: "Nouvelle capture" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Captures et fichiers de leads" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Importer des leads CSV" })).toBeVisible();
   await expect(page.getByText("Prendre ou déposer des photos")).toBeVisible();
   await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant compression et upload.")).toBeVisible();
+});
+
+test("lead CSV pair is merged and deduplicated before import", async ({ page }) => {
+  await page.goto("/import");
+
+  const csvInputs = page.locator('input[type="file"][accept*=".csv"]');
+  await csvInputs.nth(0).setInputFiles("Documents/leads_1780840344527.csv");
+  await csvInputs.nth(1).setInputFiles("Documents/contacts_1780840350344.csv");
+
+  await expect(page.getByText("10 lead(s) détecté(s)")).toBeVisible();
+  await expect(page.getByText("6 avec email, prêts pour campagne")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Importer les leads" })).toBeEnabled();
 });
 
 test("import page accepts JPEG and HEIC captures", async ({ page }) => {
@@ -54,7 +81,7 @@ test("import page accepts JPEG and HEIC captures", async ({ page }) => {
   });
   await page.goto("/import");
 
-  await page.locator('input[type="file"]').setInputFiles([
+  await page.getByLabel("Choisir des photos terrain").setInputFiles([
     "e2e/fixtures/capture-sample.jpg",
     "e2e/fixtures/capture-sample.heic",
   ]);
@@ -69,13 +96,13 @@ test("import page accepts JPEG and HEIC captures", async ({ page }) => {
   await expect(heic).toContainText("Date absente");
 });
 
-test("plan page exposes generation, csv and crm actions", async ({ page }) => {
+test("plan page exposes generation and csv actions", async ({ page }) => {
   await page.goto("/plan");
 
   await expect(page.getByRole("heading", { name: "Plan d'appel" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Générer" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Push all" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Push all" })).toHaveCount(0);
 });
 
 test("settings page can prefill webhook presets", async ({ page }) => {

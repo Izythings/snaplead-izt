@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Archive, Check, ExternalLink, FileDown, Phone, Send, Users } from "lucide-react";
-import ConfidenceBadge from "../components/ConfidenceBadge";
+import { Archive, Check, ExternalLink, FileDown, Mail, Phone, Sparkles, Users } from "lucide-react";
+import ContactCard from "../components/ContactCard";
+import QualificationBadge from "../components/QualificationBadge";
 import LeadCard from "../components/LeadCard";
 import RelevanceBadge from "../components/RelevanceBadge";
 import ScriptDisplay from "../components/ScriptDisplay";
 import { useToast } from "../components/StatusToast";
 import { createLeadActions } from "../application/services/leadActions";
+import { contactName, contactQualification, rankContacts } from "../domain/leads/contact";
 import { leadName, phoneHref, websiteHref } from "../domain/leads/lead";
-import { relevanceFactors, relevanceScore } from "../domain/leads/relevance";
+import { relevanceFactors } from "../domain/leads/relevance";
 import type { Lead, LeadWithCapture } from "../domain/shared/types";
 import { downloadCsv, leadsToCsv } from "../infrastructure/browser/csv";
 import { supabaseDataGateway } from "../infrastructure/supabase/repository";
@@ -31,6 +33,18 @@ const scoreFactors = (lead: LeadWithCapture) => [
 ];
 
 const BigScore = ({ score, title, source, onOpen }: { score?: number | null; title: string; source: string; onOpen: () => void }) => {
+  if (score === null || score === undefined) {
+    return (
+      <button onClick={onOpen} className="snap-panel block w-full p-6 text-left transition hover:border-brick/60">
+        <div className="text-5xl font-bold leading-none text-muted">N/A</div>
+        <div className="mt-4 text-sm font-semibold">{title} · Non qualifié</div>
+        <div className="mt-4 flex justify-between border-t pt-3 text-xs text-muted" style={{ borderColor: "var(--c-line)" }}>
+          <span>{source}</span>
+          <span>Qualification requise</span>
+        </div>
+      </button>
+    );
+  }
   const pct = Math.round((score ?? 0) * 100);
   const label = pct >= 70 ? "Score élevé" : pct >= 40 ? "Score moyen" : "Score faible";
   const color = pct >= 70 ? "var(--c-confirm)" : pct >= 40 ? "var(--c-warn)" : "var(--c-alert)";
@@ -91,19 +105,19 @@ const ScoreDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () =>
 
 const RelevanceDetails = ({ lead, onClose }: { lead: LeadWithCapture; onClose: () => void }) => {
   const factors = relevanceFactors(lead);
-  const pct = Math.round(relevanceScore(lead) * 100);
+  const pct = lead.company_qualification_score === null ? null : Math.round(lead.company_qualification_score * 100);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm" onClick={onClose} role="presentation">
       <div className="snap-panel max-h-[86vh] w-full max-w-xl overflow-auto p-5 shadow-[var(--shadow-elegant)]" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="relevance-dialog-title">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="snap-label text-brick">Pertinence commerciale</div>
-            <h2 id="relevance-dialog-title" className="mt-1 text-2xl">{pct}/100</h2>
+            <h2 id="relevance-dialog-title" className="mt-1 text-2xl">{pct === null ? "N/A" : `${pct}/100`}</h2>
           </div>
           <button onClick={onClose} className="snap-button-secondary px-3 py-1.5 text-sm">Fermer</button>
         </div>
         <p className="mb-4 text-sm text-muted">
-          Score orienté prospection KarayCRM. Il ne mesure pas la fiabilité de l'identification, mais l'intérêt commercial du lead.
+          {pct === null ? "Ce lead n'a pas encore été qualifié." : "Score orienté prospection KarayCRM. Il mesure l'intérêt commercial du lead."}
         </p>
         <div className="space-y-2">
           {factors.map((factor) => (
@@ -128,19 +142,22 @@ export default function LeadDetail() {
   const { id } = useParams();
   const [lead, setLead] = useState<LeadWithCapture | null>(null);
   const [confreres, setConfreres] = useState<LeadWithCapture[]>([]);
+  const [contacts, setContacts] = useState<LeadWithCapture[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [relevanceOpen, setRelevanceOpen] = useState(false);
+  const [qualificationMenuOpen, setQualificationMenuOpen] = useState(false);
   const toast = useToast();
 
   const load = async () => {
     if (!id) return;
     try {
-      const { lead: nextLead, confreres: nextConfreres } = await supabaseDataGateway.fetchLeadDetail(id);
+      const { lead: nextLead, confreres: nextConfreres, contacts: nextContacts } = await supabaseDataGateway.fetchLeadDetail(id);
       setLead(nextLead);
       setNotes(nextLead?.notes ?? "");
       setConfreres(nextConfreres);
+      setContacts(rankContacts(nextContacts));
     } catch (error) {
       toast.error("Chargement lead échoué", error instanceof Error ? error.message : String(error));
     }
@@ -173,19 +190,6 @@ export default function LeadDetail() {
     await load();
   };
 
-  const push = async () => {
-    if (!lead) return;
-    setBusy(true);
-    try {
-      await leadActions.pushLead(lead.id);
-      toast.success("Lead poussé au CRM");
-      await load();
-    } catch (error) {
-      toast.error("Push CRM échoué", error instanceof Error ? error.message : String(error));
-    }
-    setBusy(false);
-  };
-
   const searchConfreres = async () => {
     if (!lead) return;
     setBusy(true);
@@ -199,8 +203,30 @@ export default function LeadDetail() {
     setBusy(false);
   };
 
+  const qualify = async (scope: "lead" | "contacts" | "both") => {
+    if (!lead) return;
+    setBusy(true);
+    setQualificationMenuOpen(false);
+    try {
+      await leadActions.qualifyLeads([lead.id], scope);
+      toast.success("Qualification terminée");
+      await load();
+    } catch (error) {
+      toast.error("Qualification échouée", error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!lead) return <div>Chargement</div>;
-  const all = [lead, ...confreres];
+  const all = [lead, ...contacts.filter((contact) => contact.id !== lead.id), ...confreres];
+  const qualification = contactQualification(lead);
+  const primaryDecisionMaker = contacts.find((contact) => contactQualification(contact).role === "Décideur");
+  const operationalSponsor = contacts.find((contact) => contactQualification(contact).role === "Sponsor opérationnel");
+  const financialInfluencer = contacts.find((contact) => {
+    const title = (contact.contact_job_title ?? "").toLowerCase();
+    return title.includes("financial") || title.includes("financier") || title.includes("administratif") || title.includes("daf");
+  });
 
   const captured = lead.captures?.exif_taken_at ? new Date(lead.captures.exif_taken_at).toLocaleString("fr-FR") : "sur le terrain";
   const location = lead.captures?.exif_address || [lead.ville, lead.departement].filter(Boolean).join(" · ") || "Zone inconnue";
@@ -231,7 +257,7 @@ export default function LeadDetail() {
           </div>
         </div>
         <div className="grid gap-3">
-          <BigScore score={relevanceScore(lead)} title="Pertinence" source="Activité · taille · âge · contact" onOpen={() => setRelevanceOpen(true)} />
+          <BigScore score={lead.company_qualification_score} title="Pertinence" source="Activité · taille · contactabilité" onOpen={() => setRelevanceOpen(true)} />
           <BigScore score={lead.confidence_score} title="Confiance" source="Sirene · Pappers · Vision" onOpen={() => setScoreOpen(true)} />
         </div>
       </header>
@@ -245,13 +271,42 @@ export default function LeadDetail() {
         <div className="p-4"><Field label="Statut" value={lead.status} /></div>
       </section>
 
+      {(lead.contact_first_name || lead.contact_last_name || lead.email || lead.contact_job_title) && (
+        <section className="snap-panel mb-7 p-5">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="snap-label font-semibold text-ember">Fiche contact</div>
+              <h2 className="mt-1 text-2xl">{contactName(lead)}</h2>
+              <p className="mt-1 text-sm text-muted">{lead.contact_job_title || "Fonction à qualifier"}</p>
+            </div>
+            <div className="text-right">
+              <div className="mono text-3xl font-bold">{qualification.score}/100</div>
+              <div className="mt-1 text-xs font-semibold text-muted">{qualification.role} · {qualification.priority}</div>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Field label="Email" value={lead.email} mono />
+            <Field label="Téléphone" value={lead.telephone} mono />
+            <Field label="LinkedIn" value={lead.contact_linkedin} />
+            <Field label="Pertinence" value={qualification.reason} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {lead.email && <a href={`mailto:${lead.email}`} className="snap-button"><Mail size={16} />Écrire</a>}
+            {lead.telephone && <a href={phoneHref(lead.telephone)} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
+            {lead.contact_linkedin && <a href={lead.contact_linkedin} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />LinkedIn</a>}
+          </div>
+        </section>
+      )}
+
       <section className="mb-7 grid gap-6 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4">
           <div className="snap-panel p-4">
             <div className="mb-3 flex justify-between">
               <span className="text-sm font-semibold">Champs extraits</span>
               <button onClick={() => setRelevanceOpen(true)} className="text-left">
-                <RelevanceBadge score={relevanceScore(lead)} />
+                {lead.company_qualification_status === "qualified"
+                  ? <RelevanceBadge score={lead.company_qualification_score} />
+                  : <QualificationBadge status={lead.company_qualification_status} score={lead.company_qualification_score} />}
               </button>
             </div>
             <div className="space-y-2">
@@ -285,6 +340,29 @@ export default function LeadDetail() {
           </div>
         </div>
       </section>
+
+      {contacts.length > 0 && (
+        <section className="mb-7">
+          <div className="mb-4">
+            <div className="snap-label font-semibold text-ember">Contacts de l'entreprise</div>
+            <h2 className="mt-1 text-2xl">{contacts.length} contact{contacts.length > 1 ? "s" : ""} classé{contacts.length > 1 ? "s" : ""} par pertinence</h2>
+            <p className="mt-1 text-sm text-muted">Le score combine pouvoir de décision, proximité avec les opérations et moyens de contact disponibles.</p>
+          </div>
+          {(primaryDecisionMaker || operationalSponsor) && (
+            <div className="snap-panel-alt mb-4 p-4">
+              <div className="snap-label font-semibold text-ember">Stratégie de contact recommandée</div>
+              <p className="mt-2 text-sm leading-6">
+                {primaryDecisionMaker && <>Décision : <strong>{contactName(primaryDecisionMaker)}</strong>{primaryDecisionMaker.contact_job_title ? `, ${primaryDecisionMaker.contact_job_title}` : ""}. </>}
+                {operationalSponsor && <>Validation terrain : <strong>{contactName(operationalSponsor)}</strong>{operationalSponsor.contact_job_title ? `, ${operationalSponsor.contact_job_title}` : ""}. </>}
+                {financialInfluencer && financialInfluencer.id !== primaryDecisionMaker?.id && <>Validation administrative : <strong>{contactName(financialInfluencer)}</strong>.</>}
+              </p>
+            </div>
+          )}
+          <div className="grid gap-3 lg:grid-cols-2">
+            {contacts.map((contact) => <ContactCard key={contact.id} contact={contact} selected={contact.id === lead.id} />)}
+          </div>
+        </section>
+      )}
 
       <section className="mb-7 border-y py-7" style={{ borderColor: "var(--c-line)" }}>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
@@ -320,9 +398,18 @@ export default function LeadDetail() {
         <textarea id="lead-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Note rapide après appel…" className="snap-input min-h-28 p-3" />
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={() => updateLead({ notes })} className="snap-button-secondary">Enregistrer</button>
+          <div className="relative">
+            <button disabled={busy} onClick={() => setQualificationMenuOpen((open) => !open)} className="snap-button disabled:opacity-50"><Sparkles size={16} />Qualifier</button>
+            {qualificationMenuOpen && (
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 rounded-lg border border-border bg-popover p-2 shadow-[var(--shadow-elegant)]">
+                <button onClick={() => qualify("lead")} className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent">Lead uniquement</button>
+                <button onClick={() => qualify("contacts")} className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent">Contacts uniquement</button>
+                <button onClick={() => qualify("both")} className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-accent">Lead et contacts</button>
+              </div>
+            )}
+          </div>
           <button onClick={() => updateLead({ status: "contacted" })} className="snap-button bg-good border-good"><Check size={16} />Contacté</button>
           <button onClick={() => updateLead({ status: "archived" })} className="snap-button-secondary"><Archive size={16} />Archiver</button>
-          <button disabled={busy} onClick={push} className="snap-button bg-brick border-brick disabled:opacity-50"><Send size={16} />Push CRM</button>
           <button onClick={() => downloadCsv("scovio-lead.csv", leadsToCsv(all))} className="snap-button-secondary"><FileDown size={16} />CSV</button>
           {lead.telephone && <a href={phoneHref(lead.telephone)} className="snap-button-secondary"><Phone size={16} />Appeler</a>}
           {lead.site_web && <a href={websiteHref(lead.site_web)} target="_blank" rel="noreferrer" className="snap-button-secondary"><ExternalLink size={16} />Site</a>}

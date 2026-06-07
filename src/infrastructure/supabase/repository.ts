@@ -38,15 +38,43 @@ export const fetchLeadDetail = async (leadId: string): Promise<LeadDetailData> =
   ]);
   if (leadError) throw leadError;
   if (confreresError) throw confreresError;
+
+  let contacts: LeadWithCapture[] = [];
+  if (lead.source_external_id) {
+    const { data, error } = await supabase
+      .from("leads")
+      .select(LEAD_WITH_CAPTURE_SELECT)
+      .eq("source_external_id", lead.source_external_id)
+      .order("created_at");
+    if (error) throw error;
+    contacts = ((data ?? []) as LeadWithCapture[]).filter((contact) =>
+      Boolean(contact.contact_first_name || contact.contact_last_name || contact.contact_job_title || contact.email || contact.telephone)
+    );
+  } else if (lead.contact_first_name || lead.contact_last_name || lead.email) {
+    contacts = [lead as LeadWithCapture];
+  }
+
   return {
     lead: lead as LeadWithCapture | null,
     confreres: (confreres ?? []) as LeadWithCapture[],
+    contacts,
   };
 };
 
 export const updateLead = async (leadId: string, payload: Partial<Lead>) => {
   const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
   if (error) throw error;
+};
+
+export const importLeads = async (payload: Array<Partial<Lead> & { import_key: string }>) => {
+  const userId = await getCurrentUserId();
+  const rows = payload.map((lead) => ({ ...lead, user_id: userId }));
+  const { data, error } = await supabase
+    .from("leads")
+    .upsert(rows, { onConflict: "user_id,import_key", ignoreDuplicates: false })
+    .select("id");
+  if (error) throw error;
+  return { imported: data?.length ?? 0 };
 };
 
 export const markLeadPushed = async (leadId: string) => updateLead(leadId, { pushed_at: new Date().toISOString() });
@@ -61,6 +89,12 @@ export const invokeSearchConfreres = async (leadId: string) => {
   const { data, error } = await supabase.functions.invoke("search-confreres", { body: { lead_id: leadId } });
   if (error) throw error;
   return data as { created?: number };
+};
+
+export const invokeQualifyLeads = async (leadIds: string[], scope: "lead" | "contacts" | "both") => {
+  const { data, error } = await supabase.functions.invoke("qualify-leads", { body: { lead_ids: leadIds, scope } });
+  if (error) throw error;
+  return data as { qualified?: number };
 };
 
 export const invokeGeneratePlan = async () => {
@@ -146,9 +180,11 @@ export const supabaseDataGateway: DataGateway = {
   fetchLatestPlan,
   fetchLeadDetail,
   updateLead,
+  importLeads,
   markLeadPushed,
   invokeWebhookPush,
   invokeSearchConfreres,
+  invokeQualifyLeads,
   invokeGeneratePlan,
   uploadCapturePhoto,
   processCapture,
