@@ -50,6 +50,13 @@ test("import page exposes batch photo workflow", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Importer des leads CSV" })).toBeVisible();
   await expect(page.getByText("Prendre ou déposer des photos")).toBeVisible();
   await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant compression et upload.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Prendre une photo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Parcourir les photos" })).toBeVisible();
+
+  const galleryInput = page.getByLabel("Parcourir les photos terrain");
+  await expect(galleryInput).toHaveAttribute("multiple", "");
+  await expect(galleryInput).not.toHaveAttribute("capture");
+  await expect(page.getByLabel("Prendre une photo terrain")).toHaveAttribute("capture", "environment");
 });
 
 test("lead CSV pair is merged and deduplicated before import", async ({ page }) => {
@@ -81,7 +88,7 @@ test("import page accepts JPEG and HEIC captures", async ({ page }) => {
   });
   await page.goto("/import");
 
-  await page.getByLabel("Choisir des photos terrain").setInputFiles([
+  await page.getByLabel("Parcourir les photos terrain").setInputFiles([
     "e2e/fixtures/capture-sample.jpg",
     "e2e/fixtures/capture-sample.heic",
   ]);
