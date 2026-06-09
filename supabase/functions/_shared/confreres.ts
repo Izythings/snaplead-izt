@@ -5,23 +5,29 @@ export const createConfreresForLead = async (supabase: any, lead: any) => {
     return { created: 0, reason: "missing code_naf or departement" };
   }
 
-  const data = await searchPappers({
+  const searchParams = {
     code_naf: lead.code_naf,
     departement: lead.departement,
     statut_rcs: "A",
     par_page: 10,
     tranche_effectif_salarie: lead.tranche_effectif_code,
-  });
+  };
+  console.log("[createConfreresForLead] searchPappers params", searchParams);
+  const data = await searchPappers(searchParams);
 
   const results = (data?.resultats ?? []).filter((item: any) => item.siren && item.siren !== lead.siren).slice(0, 10);
   if (results.length === 0) return { created: 0 };
 
   const sirens = results.map((item: any) => item.siren);
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("leads")
     .select("siren")
     .eq("user_id", lead.user_id)
     .in("siren", sirens);
+  console.log("[createConfreresForLead] existing SIRENs", (existing ?? []).map((item: any) => item.siren));
+  if (existingError) {
+    console.error("[createConfreresForLead] dedup SELECT error", existingError);
+  }
   const existingSirens = new Set((existing ?? []).map((item: any) => item.siren));
 
   const rows = results
@@ -51,6 +57,7 @@ export const createConfreresForLead = async (supabase: any, lead: any) => {
       script_appel: `Bonjour, je suis Pablo, fondateur de KarayCRM. Je parle avec plusieurs artisans ${lead.libelle_naf ?? "de votre secteur"} dans votre zone sur la gestion devis, interventions et planning. Vous utilisez quoi aujourd'hui pour gérer ça ?`,
     }));
 
+  console.log("[createConfreresForLead] rows before INSERT", rows.length);
   if (rows.length === 0) return { created: 0 };
   const { error } = await supabase.from("leads").insert(rows);
   if (error) throw error;

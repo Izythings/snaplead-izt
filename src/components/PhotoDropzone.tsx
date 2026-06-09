@@ -1,5 +1,5 @@
 import { Camera, UploadCloud } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useState } from "react";
 import { parseExifAndLocation, type ExifResult } from "../infrastructure/browser/exif";
 import { prepareImageForVision } from "../infrastructure/browser/image";
 
@@ -13,8 +13,8 @@ export type PhotoItem = {
 };
 
 export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoItem[]) => void }) {
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputId = useId();
+  const cameraInputId = useId();
   const [loading, setLoading] = useState(false);
 
   const handleFiles = async (files: FileList | File[]) => {
@@ -54,7 +54,6 @@ export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoIt
         void handleFiles(event.dataTransfer.files);
       }}
       className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-6 text-center transition-colors hover:border-ember/50 hover:bg-accent/30"
-      onClick={() => galleryInputRef.current?.click()}
     >
       <span className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-secondary text-ember">
         <Camera size={28} aria-hidden="true" />
@@ -62,31 +61,23 @@ export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoIt
       <div className="font-display text-lg font-semibold">Prendre ou déposer des photos</div>
       <p className="mt-1 max-w-md text-sm text-muted">Multi-photo, EXIF GPS et date extraits avant compression et upload.</p>
       <div className="mt-5 flex w-full max-w-sm flex-col justify-center gap-3 sm:flex-row">
-        <button
-          type="button"
+        <label
+          htmlFor={cameraInputId}
           className="snap-button-secondary"
-          onClick={(event) => {
-            event.stopPropagation();
-            cameraInputRef.current?.click();
-          }}
         >
           <Camera size={17} aria-hidden="true" />
           Prendre une photo
-        </button>
-        <button
-          type="button"
+        </label>
+        <label
+          htmlFor={galleryInputId}
           className="snap-button"
-          onClick={(event) => {
-            event.stopPropagation();
-            galleryInputRef.current?.click();
-          }}
         >
           <UploadCloud size={17} aria-hidden="true" />
           Parcourir les photos
-        </button>
+        </label>
       </div>
       <input
-        ref={galleryInputRef}
+        id={galleryInputId}
         type="file"
         accept="image/*"
         multiple
@@ -95,7 +86,7 @@ export default function PhotoDropzone({ onPhotos }: { onPhotos: (photos: PhotoIt
         onChange={(event) => void handleInputChange(event)}
       />
       <input
-        ref={cameraInputRef}
+        id={cameraInputId}
         type="file"
         accept="image/*"
         capture="environment"

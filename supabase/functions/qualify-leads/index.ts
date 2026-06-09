@@ -1,8 +1,6 @@
-import { adminClient } from "../_shared/api.ts";
+import { adminClient, authenticatedAccount, AuthenticationError } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { qualifyCompany, qualifyContact } from "../_shared/qualification.ts";
-
-const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -16,13 +14,11 @@ Deno.serve(async (req) => {
       return json({ error: "lead_ids and scope (lead|contacts|both) are required" }, 400);
     }
 
-    const authHeader = req.headers.get("authorization") ?? "";
-    const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    const userId = userData.user?.id ?? LOCAL_USER_ID;
+    const { accountOwnerId } = await authenticatedAccount(req, supabase);
     const { data: selected, error: selectedError } = await supabase
       .from("leads")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", accountOwnerId)
       .in("id", leadIds);
     if (selectedError) throw selectedError;
 
@@ -32,7 +28,7 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase
         .from("leads")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", accountOwnerId)
         .in("source_external_id", externalIds);
       if (error) throw error;
       groupRows = [...groupRows, ...(data ?? [])];
@@ -75,6 +71,9 @@ Deno.serve(async (req) => {
 
     return json({ qualified: rows.length, scope });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : String(error) },
+      error instanceof AuthenticationError ? 401 : 500,
+    );
   }
 });

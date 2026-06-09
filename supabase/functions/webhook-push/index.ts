@@ -1,7 +1,5 @@
-import { adminClient } from "../_shared/api.ts";
+import { adminClient, authenticatedAccount, AuthenticationError } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
-
-const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
 
 const defaultPayload = (lead: any) => ({
   source: "leadsnap",
@@ -72,15 +70,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const trigger = body.trigger ?? "manual";
     const isCampaign = body.campaign === true;
-    const authHeader = req.headers.get("authorization") ?? "";
-    const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    const userId = userData.user?.id ?? LOCAL_USER_ID;
+    const { accountOwnerId } = await authenticatedAccount(req, supabase);
 
     let lead = null;
     if (body.test) {
       lead = {
         id: null,
-        user_id: userId,
+        user_id: accountOwnerId,
         nom_commercial: "Atelier Pluvia",
         raison_sociale: "Atelier Pluvia SAS",
         telephone: "04 78 84 22 19",
@@ -90,12 +86,12 @@ Deno.serve(async (req) => {
         captures: { exif_lat: 45.77, exif_lng: 4.88, exif_taken_at: new Date().toISOString() },
       };
     } else {
-      const { data, error } = await supabase.from("leads").select("*, captures(*)").eq("id", body.lead_id).eq("user_id", userId).single();
+      const { data, error } = await supabase.from("leads").select("*, captures(*)").eq("id", body.lead_id).eq("user_id", accountOwnerId).single();
       if (error) throw error;
       lead = data;
     }
 
-    let query = supabase.from("webhook_configs").select("*").eq("user_id", userId).eq("is_active", true);
+    let query = supabase.from("webhook_configs").select("*").eq("user_id", accountOwnerId).eq("is_active", true);
     if (body.config_id) query = query.eq("id", body.config_id);
     else query = query.eq("trigger_on", trigger);
     const { data: configs, error: configError } = await query;
@@ -126,7 +122,7 @@ Deno.serve(async (req) => {
         response_status: status || null,
         response_body: responseBody,
         success,
-        user_id: userId,
+        user_id: accountOwnerId,
       });
       results.push({ config_id: config.id, status, success });
     }
@@ -146,6 +142,9 @@ Deno.serve(async (req) => {
     }
     return json({ results });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : String(error) },
+      error instanceof AuthenticationError ? 401 : 500,
+    );
   }
 });

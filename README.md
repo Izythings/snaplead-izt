@@ -117,6 +117,9 @@ supabase/
     003_lead_import_campaigns.sql
     004_qualification_workflow.sql
     005_digital_footprint.sql
+    006_shared_accounts.sql
+    007_revoked_member_account.sql
+    008_legacy_capture_storage_paths.sql
   functions/
     process-capture/
     search-confreres/
@@ -157,7 +160,6 @@ Variables frontend :
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 VITE_E2E_AUTH=false
-VITE_DISABLE_AUTH=false
 ```
 
 Secrets Supabase :
@@ -196,6 +198,12 @@ supabase functions deploy process-capture enrich-digital search-confreres genera
 
 `campaign-status` doit conserver la vérification JWT Supabase. Ne pas la déployer avec `--no-verify-jwt`.
 
+## Compte partagé
+
+L'application exige une connexion Supabase. Le propriétaire peut donner un accès complet depuis `Réglages > Accès au compte`.
+Si l'adresse invitée n'a pas encore de compte, la personne doit créer son compte avec exactement cette adresse email.
+Le propriétaire peut ensuite révoquer cet accès depuis le même écran.
+
 ## Limites Actuelles
 
 Scovi ne réalise pas encore :
@@ -204,6 +212,6 @@ Scovi ne réalise pas encore :
 - le crawl de sites pour trouver des personnes ou emails ;
 - la vérification d'emails via Hunter ou Dropcontact ;
 - le scraping de PagesJaunes ;
-- la gestion multi-utilisateur, des équipes ou de la facturation.
+- la facturation et les rôles d'équipe à permissions différenciées.
 
 Le scraping PagesJaunes n'est pas prévu en raison de ses conditions d'utilisation. Toute future prospection enrichie doit conserver la source des données, permettre l'opposition et respecter les règles de prospection B2B.

@@ -1,14 +1,18 @@
 import type { DataGateway, LeadDetailData, WebhookConfigInput, WebhookSettingsData } from "../../application/ports/dataGateway";
 import { CaptureUploadError } from "../../application/services/importCapture";
-import { LOCAL_USER_ID } from "../../domain/shared/constants";
-import type { Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog } from "../../domain/shared/types";
+import type { AccountAccess, Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog } from "../../domain/shared/types";
 import { supabase } from "./client";
 
 const LEAD_WITH_CAPTURE_SELECT = "*, captures(*)";
 
-export const getCurrentUserId = async () => {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? LOCAL_USER_ID;
+export const getCurrentAccountOwnerId = async () => {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw userError ?? new Error("Authentication required");
+
+  const { data, error } = await supabase.rpc("current_account_owner_id");
+  if (error) throw error;
+  if (!data) throw new Error("Shared account not initialized");
+  return data as string;
 };
 
 export const fetchCaptures = async () => {
@@ -67,7 +71,7 @@ export const updateLead = async (leadId: string, payload: Partial<Lead>) => {
 };
 
 export const importLeads = async (payload: Array<Partial<Lead> & { import_key: string }>) => {
-  const userId = await getCurrentUserId();
+  const userId = await getCurrentAccountOwnerId();
   const rows = payload.map((lead) => ({ ...lead, user_id: userId }));
   const { data, error } = await supabase
     .from("leads")
@@ -115,7 +119,7 @@ export const uploadCapturePhoto = async (photo: {
     address: string | null;
   };
 }) => {
-  const userId = await getCurrentUserId();
+  const userId = await getCurrentAccountOwnerId();
   const ext = photo.file.name.split(".").pop() || "jpg";
   const path = `${userId}/${Date.now()}-${photo.id}.${ext}`;
 
@@ -161,8 +165,8 @@ export const fetchWebhookSettings = async (): Promise<WebhookSettingsData> => {
 };
 
 export const createWebhookConfig = async (payload: WebhookConfigInput) => {
-  const { data: userData } = await supabase.auth.getUser();
-  const { error } = await supabase.from("webhook_configs").insert({ ...payload, user_id: userData.user?.id });
+  const accountOwnerId = await getCurrentAccountOwnerId();
+  const { error } = await supabase.from("webhook_configs").insert({ ...payload, user_id: accountOwnerId });
   if (error) throw error;
 };
 
@@ -173,6 +177,28 @@ export const deleteWebhookConfig = async (id: string) => {
 
 export const testWebhookConfig = async (configId: string) =>
   invokeWebhookPush({ config_id: configId, test: true, trigger: "manual" });
+
+export const fetchAccountAccess = async () => {
+  const { data, error } = await supabase.rpc("get_account_access");
+  if (error) throw error;
+  return data as AccountAccess;
+};
+
+export const inviteAccountMember = async (email: string) => {
+  const { data, error } = await supabase.rpc("invite_account_member", { invitee_email: email });
+  if (error) throw error;
+  return data as { status: "pending" | "accepted"; email: string };
+};
+
+export const removeAccountMember = async (userId: string) => {
+  const { error } = await supabase.rpc("remove_account_member", { target_user_id: userId });
+  if (error) throw error;
+};
+
+export const revokeAccountInvite = async (inviteId: string) => {
+  const { error } = await supabase.rpc("revoke_account_invite", { target_invite_id: inviteId });
+  if (error) throw error;
+};
 
 export const supabaseDataGateway: DataGateway = {
   fetchCaptures,
@@ -192,4 +218,8 @@ export const supabaseDataGateway: DataGateway = {
   createWebhookConfig,
   deleteWebhookConfig,
   testWebhookConfig,
+  fetchAccountAccess,
+  inviteAccountMember,
+  removeAccountMember,
+  revokeAccountInvite,
 };

@@ -1,4 +1,15 @@
-import { adminClient, callClaude, extractJson, getPappersCompany, normalizeCompany, scoreLead, searchPappers, searchSirene } from "../_shared/api.ts";
+import {
+  adminClient,
+  authenticatedAccount,
+  AuthenticationError,
+  callClaude,
+  extractJson,
+  getPappersCompany,
+  normalizeCompany,
+  scoreLead,
+  searchPappers,
+  searchSirene,
+} from "../_shared/api.ts";
 import { createConfreresForLead } from "../_shared/confreres.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { karayCrmContext } from "../_shared/sales-context.ts";
@@ -25,13 +36,21 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = adminClient();
   let captureId = "";
+  let authorizedCapture = false;
   try {
+    const { accountOwnerId } = await authenticatedAccount(req, supabase);
     const body = await req.json();
     captureId = body.capture_id;
     if (!captureId) throw new Error("capture_id is required");
 
-    const { data: capture, error: captureError } = await supabase.from("captures").select("*").eq("id", captureId).single();
+    const { data: capture, error: captureError } = await supabase
+      .from("captures")
+      .select("*")
+      .eq("id", captureId)
+      .eq("user_id", accountOwnerId)
+      .single();
     if (captureError) throw captureError;
+    authorizedCapture = true;
     await supabase.from("captures").update({ status: "processing", error_message: null }).eq("id", captureId);
 
     const { data: fileData, error: fileError } = await supabase.storage.from("captures").download(capture.photo_path);
@@ -54,7 +73,13 @@ Deno.serve(async (req) => {
     let cached = null;
     const siren = sirene?.uniteLegale?.siren ?? sirene?.siren;
     if (siren) {
-      const { data } = await supabase.from("leads").select("*").eq("siren", siren).limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("user_id", accountOwnerId)
+        .eq("siren", siren)
+        .limit(1)
+        .maybeSingle();
       cached = data;
     }
     const pappersSearch = cached ? null : await searchPappers({ q: extracted.nom_commercial, code_postal: null });
@@ -143,9 +168,12 @@ Extracted photo data: ${JSON.stringify(extracted)}`;
 
     return json({ lead: digital?.lead ?? lead, digital, confreres });
   } catch (error) {
-    if (captureId) {
+    if (captureId && authorizedCapture) {
       await supabase.from("captures").update({ status: "failed", error_message: error instanceof Error ? error.message : String(error) }).eq("id", captureId);
     }
-    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : String(error) },
+      error instanceof AuthenticationError ? 401 : 500,
+    );
   }
 });

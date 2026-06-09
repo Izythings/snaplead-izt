@@ -3,6 +3,37 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 export const adminClient = () =>
   createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
+export class AuthenticationError extends Error {
+  constructor() {
+    super("Unauthorized");
+  }
+}
+
+export const isServiceRoleRequest = (req: Request) => {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  return Boolean(token && token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+};
+
+export const authenticatedAccount = async (req: Request, supabase: ReturnType<typeof adminClient>) => {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) throw new AuthenticationError();
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+  if (userError || !userData.user) throw new AuthenticationError();
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("account_members")
+    .select("account_owner_id")
+    .eq("user_id", userData.user.id)
+    .single();
+  if (membershipError || !membership) throw new AuthenticationError();
+
+  return {
+    userId: userData.user.id,
+    accountOwnerId: membership.account_owner_id as string,
+  };
+};
+
 export const extractJson = (text: string) => {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("Claude did not return JSON");
@@ -71,8 +102,14 @@ export const searchPappers = async (params: Record<string, string | number | nul
     if (value !== null && value !== undefined && value !== "") search.set(name, String(value));
   }
   const response = await fetch(`https://api.pappers.fr/v2/recherche?${search}`);
-  if (!response.ok) return null;
-  return response.json();
+  console.log("[searchPappers] HTTP status", response.status);
+  if (!response.ok) {
+    console.error("[searchPappers] error response", await response.text());
+    return null;
+  }
+  const data = await response.json();
+  console.log("[searchPappers] raw result count", Array.isArray(data?.resultats) ? data.resultats.length : 0);
+  return data;
 };
 
 export const getPappersCompany = async (siren?: string | null) => {

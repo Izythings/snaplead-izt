@@ -132,7 +132,7 @@ function Sidebar({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
   );
 }
 
-function AppLayout() {
+function AppLayout({ userEmail }: { userEmail: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -192,7 +192,9 @@ function AppLayout() {
             <button className="grid h-11 w-11 place-items-center rounded-md text-muted hover:bg-accent hover:text-foreground" aria-label="Notifications">
               <Bell size={19} />
             </button>
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-secondary font-display text-xs font-bold text-ember" aria-label="Profil utilisateur">PZ</span>
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-secondary font-display text-xs font-bold uppercase text-ember" aria-label="Profil utilisateur">
+              {userEmail.slice(0, 2)}
+            </span>
           </header>
 
           <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-4 py-5 pb-24 sm:px-6 md:py-8 md:pb-14 lg:px-8">
@@ -231,9 +233,7 @@ function AppLayout() {
 
 export default function App() {
   const e2eAuth = import.meta.env.VITE_E2E_AUTH === "true";
-  const disableAuth = import.meta.env.VITE_DISABLE_AUTH === "true";
-  const localDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "";
-  const skipAuth = disableAuth || e2eAuth || localDev;
+  const skipAuth = e2eAuth;
   const { session, loading } = useSession();
 
   if (!skipAuth && loading) return <div className="grid min-h-screen place-items-center bg-background text-muted">Chargement</div>;
@@ -241,7 +241,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AppLayout />
+      <AppLayout userEmail={session?.user.email ?? "SC"} />
     </ToastProvider>
   );
 }

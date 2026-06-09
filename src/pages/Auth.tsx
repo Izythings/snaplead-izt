@@ -31,6 +31,31 @@ export default function Auth() {
     }
   };
 
+  const sendMagicLink = async () => {
+    setError("");
+    setMessage("");
+    if (!email) {
+      setError("Renseigne ton adresse email.");
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+        shouldCreateUser: false,
+      },
+    });
+    setLoading(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setMessage("Lien de connexion envoyé. Vérifie ta boîte email.");
+  };
+
   return (
     <main className="grid min-h-screen place-items-center bg-background px-4 text-foreground">
       <form onSubmit={submit} className="snap-panel w-full max-w-sm p-6 shadow-[var(--shadow-elegant)]">
@@ -60,6 +85,11 @@ export default function Auth() {
         <button disabled={loading} className="snap-button w-full disabled:opacity-60">
           {loading ? "Connexion" : mode === "signin" ? "Se connecter" : "Créer le compte"}
         </button>
+        {mode === "signin" && (
+          <button type="button" disabled={loading} onClick={sendMagicLink} className="snap-button-secondary mt-3 w-full disabled:opacity-60">
+            Recevoir un lien de connexion
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {

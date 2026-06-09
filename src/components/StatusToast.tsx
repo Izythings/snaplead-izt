@@ -93,10 +93,6 @@ function ToastStack({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: string
 }
 
 function StatusBar({ last }: { last: Toast | null }) {
-  const local =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.hostname === "";
   const supabaseHost = new URL(import.meta.env.VITE_SUPABASE_URL || "https://supabase.local").hostname;
   const statusColor = last?.kind === "error" ? "bg-destructive" : last?.kind === "success" ? "bg-success" : "bg-ember";
 
@@ -105,7 +101,7 @@ function StatusBar({ last }: { last: Toast | null }) {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className={`h-2 w-2 rounded-full ${statusColor}`} />
-          <span className="font-medium">{local ? "Local no-login" : "Auth distante"}</span>
+          <span className="font-medium">Session sécurisée</span>
           <span className="text-muted">Supabase: {supabaseHost}</span>
         </div>
         <div className="min-w-0 truncate text-muted">

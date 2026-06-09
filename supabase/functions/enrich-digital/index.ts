@@ -1,4 +1,9 @@
-import { adminClient } from "../_shared/api.ts";
+import {
+  adminClient,
+  authenticatedAccount,
+  AuthenticationError,
+  isServiceRoleRequest,
+} from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import {
   buildDigitalUpdate,
@@ -18,27 +23,19 @@ const fieldMask = [
   "places.googleMapsUri",
 ].join(",");
 
-const authorizedUserId = async (req: Request, supabase: ReturnType<typeof adminClient>) => {
-  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (token && token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return null;
-  if (!token) throw new Error("Unauthorized");
-
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) throw new Error("Unauthorized");
-  return data.user.id;
-};
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = adminClient();
 
   try {
-    const userId = await authorizedUserId(req, supabase);
+    const accountOwnerId = isServiceRoleRequest(req)
+      ? null
+      : (await authenticatedAccount(req, supabase)).accountOwnerId;
     const body = await req.json();
     if (!body.lead_id) return json({ error: "lead_id is required" }, 400);
 
     let leadQuery = supabase.from("leads").select("*").eq("id", body.lead_id);
-    if (userId) leadQuery = leadQuery.eq("user_id", userId);
+    if (accountOwnerId) leadQuery = leadQuery.eq("user_id", accountOwnerId);
     const { data: lead, error: leadError } = await leadQuery.single();
     if (leadError) throw leadError;
 
@@ -83,6 +80,6 @@ Deno.serve(async (req) => {
     return json({ lead: enrichedLead });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return json({ error: message }, message === "Unauthorized" ? 401 : 500);
+    return json({ error: message }, error instanceof AuthenticationError ? 401 : 500);
   }
 });

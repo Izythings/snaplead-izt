@@ -17,6 +17,28 @@ export type CampaignStatus =
   | "failed"
   | "stopped";
 export type WebhookTrigger = "manual" | "on_enriched" | "on_actionable" | "on_contacted";
+export type AccountRole = "owner" | "member";
+
+export type AccountMember = {
+  user_id: string;
+  email: string;
+  role: AccountRole;
+  created_at: string;
+};
+
+export type AccountInvite = {
+  id: string;
+  email: string;
+  status: "pending";
+  created_at: string;
+};
+
+export type AccountAccess = {
+  account_owner_id: string;
+  current_user_role: AccountRole;
+  members: AccountMember[];
+  invites: AccountInvite[];
+};
 
 export type Capture = {
   id: string;

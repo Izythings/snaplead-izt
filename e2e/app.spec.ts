@@ -50,13 +50,33 @@ test("import page exposes batch photo workflow", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Importer des leads CSV" })).toBeVisible();
   await expect(page.getByText("Prendre ou déposer des photos")).toBeVisible();
   await expect(page.getByText("Multi-photo, EXIF GPS et date extraits avant compression et upload.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Prendre une photo" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Parcourir les photos" })).toBeVisible();
+  await expect(page.getByText("Prendre une photo", { exact: true })).toBeVisible();
+  await expect(page.getByText("Parcourir les photos", { exact: true })).toBeVisible();
 
   const galleryInput = page.getByLabel("Parcourir les photos terrain");
   await expect(galleryInput).toHaveAttribute("multiple", "");
   await expect(galleryInput).not.toHaveAttribute("capture");
   await expect(page.getByLabel("Prendre une photo terrain")).toHaveAttribute("capture", "environment");
+
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByText("Parcourir les photos", { exact: true }).click();
+  const chooser = await chooserPromise;
+  expect(chooser.isMultiple()).toBe(true);
+});
+
+test("mobile navigation stays visible without scrolling", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"), "Mobile-only behavior");
+  await page.goto("/");
+
+  const dock = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(dock).toBeVisible();
+  const box = await dock.boundingBox();
+  const viewport = page.viewportSize();
+
+  expect(box).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
 });
 
 test("lead CSV pair is merged and deduplicated before import", async ({ page }) => {
@@ -115,7 +135,7 @@ test("plan page exposes generation and csv actions", async ({ page }) => {
 test("settings page can prefill webhook presets", async ({ page }) => {
   await page.goto("/settings");
 
-  await expect(page.getByRole("heading", { name: "Intégrations et webhooks" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Compte partagé et intégrations" })).toBeVisible();
   await page.getByRole("button", { name: "Make" }).click();
   await expect(page.getByPlaceholder("URL webhook")).toHaveValue("https://hook.eu1.make.com/...");
   await page.getByRole("button", { name: "Zapier" }).click();

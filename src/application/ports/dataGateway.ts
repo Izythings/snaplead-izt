@@ -1,4 +1,4 @@
-import type { Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog, WebhookTrigger } from "../../domain/shared/types";
+import type { AccountAccess, Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog, WebhookTrigger } from "../../domain/shared/types";
 
 export type LeadDetailData = {
   lead: LeadWithCapture | null;
@@ -50,4 +50,8 @@ export type DataGateway = {
   createWebhookConfig(payload: WebhookConfigInput): Promise<void>;
   deleteWebhookConfig(id: string): Promise<void>;
   testWebhookConfig(configId: string): Promise<unknown>;
+  fetchAccountAccess(): Promise<AccountAccess>;
+  inviteAccountMember(email: string): Promise<{ status: "pending" | "accepted"; email: string }>;
+  removeAccountMember(userId: string): Promise<void>;
+  revokeAccountInvite(inviteId: string): Promise<void>;
 };

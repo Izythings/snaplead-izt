@@ -1,24 +1,20 @@
-import { adminClient, callClaude, extractJson } from "../_shared/api.ts";
+import { adminClient, authenticatedAccount, AuthenticationError, callClaude, extractJson } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { hasHighActivity } from "../_shared/digital.ts";
 import { karayCrmContext } from "../_shared/sales-context.ts";
-
-const LOCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = adminClient();
   try {
-    const authHeader = req.headers.get("authorization") ?? "";
-    const { data: userData } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    const userId = userData.user?.id ?? LOCAL_USER_ID;
+    const { accountOwnerId } = await authenticatedAccount(req, supabase);
 
     const since = new Date();
     since.setHours(0, 0, 0, 0);
     const { data: leads, error } = await supabase
       .from("leads")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", accountOwnerId)
       .gte("created_at", since.toISOString())
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -66,7 +62,7 @@ Leads, already sorted with high activity first: ${JSON.stringify(prioritizedLead
       contenu: content,
       lead_ids: leadIds,
       status: "ready",
-      user_id: userId,
+      user_id: accountOwnerId,
     }).select("*").single();
     if (planError) throw planError;
     if (leadIds.length > 0) {
@@ -74,6 +70,9 @@ Leads, already sorted with high activity first: ${JSON.stringify(prioritizedLead
     }
     return json({ plan });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : String(error) },
+      error instanceof AuthenticationError ? 401 : 500,
+    );
   }
 });

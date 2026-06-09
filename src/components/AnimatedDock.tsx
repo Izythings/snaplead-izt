@@ -12,7 +12,7 @@ export type DockItemData = {
 export function AnimatedDock({ items }: { className?: string; items: DockItemData[] }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-5 border-t border-sidebar-border bg-sidebar/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-50 grid h-14 grid-cols-5 rounded-xl border border-sidebar-border bg-sidebar/95 px-1 shadow-[var(--shadow-elegant)] backdrop-blur-xl [transform:translateZ(0)] md:hidden"
       aria-label="Navigation principale"
     >
       {items.map((item) => (
@@ -23,14 +23,14 @@ export function AnimatedDock({ items }: { className?: string; items: DockItemDat
           className={({ isActive }) =>
             item.featured
               ? "relative flex min-h-11 items-center justify-center"
-              : `relative flex min-h-11 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors ${
+              : `relative flex min-h-11 flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-colors ${
                   isActive ? "text-foreground before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:bg-ember" : "text-muted hover:text-foreground"
                 }`
           }
         >
           {item.featured ? (
-            <span className="absolute -top-4 grid h-14 w-14 place-items-center rounded-full bg-ember text-[oklch(var(--ember-foreground))] shadow-[var(--shadow-ember)]">
-              <Plus size={24} aria-hidden="true" />
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-ember text-[oklch(var(--ember-foreground))] shadow-[var(--shadow-ember)]">
+              <Plus size={22} aria-hidden="true" />
             </span>
           ) : (
             <>
