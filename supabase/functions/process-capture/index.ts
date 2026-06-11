@@ -12,7 +12,7 @@ import {
 } from "../_shared/api.ts";
 import { createConfreresForLead } from "../_shared/confreres.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
-import { karayCrmContext } from "../_shared/sales-context.ts";
+import { getSalesContext } from "../_shared/sales-context.ts";
 import { qualifyCompany } from "../_shared/qualification.ts";
 
 const visionPrompt = `Analyze photo of business signage (vehicle, storefront, construction panel, etc).
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
   let captureId = "";
   let authorizedCapture = false;
   try {
-    const { accountOwnerId } = await authenticatedAccount(req, supabase);
+    const { accountOwnerId, userId } = await authenticatedAccount(req, supabase);
     const body = await req.json();
     captureId = body.capture_id;
     if (!captureId) throw new Error("capture_id is required");
@@ -98,15 +98,16 @@ Deno.serve(async (req) => {
       gps: Boolean(capture.exif_lat && capture.exif_lng && normalized.adresse_siege),
     });
 
-    const generationPrompt = `${karayCrmContext}
+    const { identity, context: salesContext } = await getSalesContext(supabase, userId);
+    const generationPrompt = `${salesContext}
 
 Generate French B2B sales fields for this lead.
 
 Return strict JSON only:
 {
   "resume_business": "short useful summary of the company and why it may fit KarayCRM",
-  "angle_approche": "specific recommended angle for Pablo, using terrain context when available",
-  "script_appel": "30-second cold call script in Pablo's voice",
+  "angle_approche": "specific recommended angle for the configured seller, using terrain context when available",
+  "script_appel": "30-second cold call script in the configured seller's voice",
   "email_prospection": "ready-to-send cold email following the mandatory KarayCRM email structure"
 }
 
@@ -114,6 +115,8 @@ Rules:
 - Personalize with trade, city/region, company size, and sighting context when available.
 - The script must include the discovery question about current tools for quotes/interventions/planning.
 - The email must follow the mandatory email structure from the seller context and include the Calendly link and full signature.
+- Use this exact booking link when one is configured: ${identity.calendly_url || "none"}.
+- End the email with this exact signature when one is configured: ${identity.signature_html || "none"}.
 - Use the leader's reliable last name after "M." when available. Otherwise use "Bonjour," and do not invent a name.
 - Ask for availability at the end of the current week or the beginning of the following week, whichever is chronologically appropriate.
 - Keep it concise and ready to copy-paste.
@@ -161,7 +164,7 @@ Extracted photo data: ${JSON.stringify(extracted)}`;
 
     let confreres = { created: 0 };
     try {
-      confreres = await createConfreresForLead(supabase, lead);
+      confreres = await createConfreresForLead(supabase, lead, identity);
     } catch (confreresError) {
       console.error("search-confreres-after-process failed", confreresError);
     }

@@ -1,4 +1,12 @@
 import type { Lead } from "../../domain/shared/types";
+import { renderTemplate } from "../../domain/email/render";
+import {
+  DEFAULT_J0_CSV_TEMPLATE,
+  EMPTY_SALES_IDENTITY,
+  type EmailTemplateInput,
+  type SalesIdentityInput,
+} from "../../domain/email/settings";
+import { getEmailTimeWindow } from "../../domain/email/timeWindow";
 
 export type CsvRow = Record<string, string>;
 export type ImportLead = Partial<Lead> & { import_key: string };
@@ -80,15 +88,33 @@ const parseLocation = (location: string) => {
   return { city, departement: postal.slice(0, 2), address: location };
 };
 
-const availabilityWindow = (date = new Date()) => {
-  const day = date.getDay();
-  return day >= 1 && day <= 3 ? "en fin de semaine" : "en début de semaine prochaine";
+export type ColdEmailImportSettings = {
+  identity: SalesIdentityInput;
+  template: Pick<EmailTemplateInput, "subject" | "body">;
 };
 
-const emailContent = (lastName: string) => ({
-  subject: "15 minutes pour vous présenter KarayCRM ?",
-  body: `Bonjour${lastName ? ` M. ${lastName}` : ""},\n\nJe sais que vous recevez beaucoup de mails, donc je vais aller droit au but pour vous faire gagner du temps.\n\nJ'aimerais vous présenter KarayCRM, un outil tout-en-un de gestion des interventions, devis, factures et contrats, conçu pour vous et vos équipes terrain.\n\n15 minutes en visio. Si ça vous intéresse, on discute plus longtemps. Sinon, on s'en tient là, sans engagement de votre part.\n\nDisponible ${availabilityWindow()} ? Vous pouvez confirmer un créneau ici : https://calendly.com/pablo-karaycrm/30min\n\nPablo, fondateur de KarayCRM\n\npablo@karaycrm.fr\nkaraycrm.fr\n0783667469`,
-});
+const fallbackSettings: ColdEmailImportSettings = {
+  identity: EMPTY_SALES_IDENTITY,
+  template: DEFAULT_J0_CSV_TEMPLATE,
+};
+
+const emailContent = (
+  lead: { lastName: string; company: string; city: string },
+  settings: ColdEmailImportSettings,
+) => {
+  const variables = {
+    nom: lead.lastName,
+    entreprise: lead.company,
+    ville: lead.city,
+    fenetre_temps: getEmailTimeWindow(),
+    calendly_url: settings.identity.calendly_url,
+    signature: settings.identity.signature_html,
+  };
+  return {
+    subject: renderTemplate(settings.template.subject, variables),
+    body: renderTemplate(settings.template.body, variables),
+  };
+};
 
 const companyFromRow = (row: CsvRow) => {
   const location = first(row, ["location", "adresse", "address", "adresse_siege"]);
@@ -110,7 +136,11 @@ const companyFromRow = (row: CsvRow) => {
   };
 };
 
-export const buildImportedLeads = (companyRows: CsvRow[], contactRows: CsvRow[]): ImportLead[] => {
+export const buildImportedLeads = (
+  companyRows: CsvRow[],
+  contactRows: CsvRow[],
+  settings: ColdEmailImportSettings = fallbackSettings,
+): ImportLead[] => {
   const companies = new Map(companyRows.map((row) => {
     const company = companyFromRow(row);
     return [company.externalId || company.company.toLowerCase(), company] as const;
@@ -127,7 +157,7 @@ export const buildImportedLeads = (companyRows: CsvRow[], contactRows: CsvRow[])
     const companyName = company.company || first(row, ["lead_name", "company", "entreprise"]);
     if (!companyName && !email) return [];
 
-    const emailTemplate = emailContent(lastName);
+    const emailTemplate = emailContent({ lastName, company: companyName, city: company.city }, settings);
     const suppliedBody = first(row, ["email_prospection", "body", "message"]);
     const suppliedSubject = first(row, ["subject", "objet"]);
     const identity = email || `${company.externalId || `${companyName}:${index}`}:${firstName}:${lastName}`;
@@ -172,7 +202,7 @@ export const buildImportedLeads = (companyRows: CsvRow[], contactRows: CsvRow[])
       const company = companyFromRow(row);
       return !company.externalId || !referencedCompanies.has(company.externalId);
     });
-    imported.push(...buildImportedLeads(companiesWithoutContacts, []));
+    imported.push(...buildImportedLeads(companiesWithoutContacts, [], settings));
   }
 
   return Array.from(new Map(imported.map((lead) => [lead.import_key, lead])).values());

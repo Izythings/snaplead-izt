@@ -1,4 +1,5 @@
 import type { AccountAccess, Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog, WebhookTrigger } from "../../domain/shared/types";
+import type { EmailTemplate, EmailTemplateInput, EmailTemplateKey, SalesIdentity, SalesIdentityInput } from "../../domain/email/settings";
 
 export type LeadDetailData = {
   lead: LeadWithCapture | null;
@@ -54,4 +55,8 @@ export type DataGateway = {
   inviteAccountMember(email: string): Promise<{ status: "pending" | "accepted"; email: string }>;
   removeAccountMember(userId: string): Promise<void>;
   revokeAccountInvite(inviteId: string): Promise<void>;
+  getSalesIdentity(): Promise<SalesIdentity | null>;
+  saveSalesIdentity(payload: SalesIdentityInput): Promise<SalesIdentity>;
+  getEmailTemplate(key: EmailTemplateKey): Promise<EmailTemplate | null>;
+  saveEmailTemplate(payload: EmailTemplateInput): Promise<EmailTemplate>;
 };

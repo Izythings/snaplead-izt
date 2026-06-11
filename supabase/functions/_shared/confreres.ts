@@ -1,6 +1,7 @@
 import { searchPappers } from "./api.ts";
+import type { SalesIdentity } from "./sales-context.ts";
 
-export const createConfreresForLead = async (supabase: any, lead: any) => {
+export const createConfreresForLead = async (supabase: any, lead: any, identity: SalesIdentity) => {
   if (!lead?.id || !lead.code_naf || !lead.departement) {
     return { created: 0, reason: "missing code_naf or departement" };
   }
@@ -54,7 +55,7 @@ export const createConfreresForLead = async (supabase: any, lead: any) => {
       parent_lead_id: lead.id,
       user_id: lead.user_id,
       angle_approche: `Même métier (${lead.libelle_naf ?? lead.code_naf}) dans le département ${lead.departement}.`,
-      script_appel: `Bonjour, je suis Pablo, fondateur de KarayCRM. Je parle avec plusieurs artisans ${lead.libelle_naf ?? "de votre secteur"} dans votre zone sur la gestion devis, interventions et planning. Vous utilisez quoi aujourd'hui pour gérer ça ?`,
+      script_appel: `Bonjour, je suis ${identity.display_name || "le fondateur"}, de KarayCRM. Je parle avec plusieurs artisans ${lead.libelle_naf ?? "de votre secteur"} dans votre zone sur la gestion devis, interventions et planning. Vous utilisez quoi aujourd'hui pour gérer ça ?`,
     }));
 
   console.log("[createConfreresForLead] rows before INSERT", rows.length);

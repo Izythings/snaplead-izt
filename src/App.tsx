@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Mail,
   Home,
   Menu,
   Search,
@@ -30,6 +31,7 @@ const LeadsCRM = lazy(() => import("./pages/LeadsCRM"));
 const LeadDetail = lazy(() => import("./pages/LeadDetail"));
 const PlanAttaque = lazy(() => import("./pages/PlanAttaque"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
+const ColdEmailSettingsPage = lazy(() => import("./pages/ColdEmailSettings"));
 
 const navGroups = [
   {
@@ -46,6 +48,7 @@ const navGroups = [
     items: [
       { to: "/import", label: "Importer", icon: UploadCloud },
       { to: "/settings", label: "Réglages", icon: Settings },
+      { to: "/settings/cold-email", label: "Cold email", icon: Mail },
     ],
   },
 ];
@@ -65,6 +68,7 @@ const routeMeta = [
   { match: /^\/leads/, title: "CRM Leads · Scovi", description: "Triez, filtrez et activez les leads issus du terrain." },
   { match: /^\/plan/, title: "Plan d'appel · Scovi", description: "Exécutez le plan d'appel priorisé du jour." },
   { match: /^\/import/, title: "Nouvelle capture · Scovi", description: "Ajoutez des photos terrain pour générer de nouveaux leads." },
+  { match: /^\/settings\/cold-email/, title: "Cold email · Scovi", description: "Configurez l'identité vendeur et le template cold email J0." },
   { match: /^\/settings/, title: "Réglages · Scovi", description: "Configurez les intégrations CRM et les webhooks Scovi." },
 ];
 
@@ -99,7 +103,7 @@ function Sidebar({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === "/"}
+                  end={item.to === "/" || item.to === "/settings"}
                   onClick={onNavigate}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
@@ -213,6 +217,7 @@ function AppLayout({ userEmail }: { userEmail: string }) {
                 <Route path="/leads/:id" element={<LeadDetail />} />
                 <Route path="/plan" element={<PlanAttaque />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/settings/cold-email" element={<ColdEmailSettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
