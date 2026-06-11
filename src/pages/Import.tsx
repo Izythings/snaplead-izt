@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, UploadCloud } from "lucide-react";
 import PhotoDropzone, { type PhotoItem } from "../components/PhotoDropzone";
 import { useToast } from "../components/StatusToast";
 import { importCapture } from "../application/services/importCapture";
-import { buildImportedLeads, readCsvFile, type CsvRow } from "../infrastructure/browser/leadImport";
+import { createColdEmailSettingsActions } from "../application/services/coldEmailSettings";
+import { DEFAULT_J0_CSV_TEMPLATE, EMPTY_SALES_IDENTITY } from "../domain/email/settings";
+import { buildImportedLeads, readCsvFile, type ColdEmailImportSettings, type CsvRow } from "../infrastructure/browser/leadImport";
 import { supabaseDataGateway } from "../infrastructure/supabase/repository";
+
+const coldEmailActions = createColdEmailSettingsActions(supabaseDataGateway);
 
 export default function Import() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -14,8 +18,22 @@ export default function Import() {
   const [companyRows, setCompanyRows] = useState<CsvRow[]>([]);
   const [contactRows, setContactRows] = useState<CsvRow[]>([]);
   const [importingLeads, setImportingLeads] = useState(false);
+  const [coldEmailSettings, setColdEmailSettings] = useState<ColdEmailImportSettings>({
+    identity: EMPTY_SALES_IDENTITY,
+    template: DEFAULT_J0_CSV_TEMPLATE,
+  });
   const toast = useToast();
-  const leadPreview = useMemo(() => buildImportedLeads(companyRows, contactRows), [companyRows, contactRows]);
+  const leadPreview = useMemo(
+    () => buildImportedLeads(companyRows, contactRows, coldEmailSettings),
+    [companyRows, contactRows, coldEmailSettings],
+  );
+
+  useEffect(() => {
+    if (import.meta.env.VITE_E2E_AUTH === "true") return;
+    void coldEmailActions.load()
+      .then(setColdEmailSettings)
+      .catch((error) => toast.error("Chargement du template cold email échoué", error));
+  }, []);
 
   const selectCsv = async (file: File | undefined, kind: "companies" | "contacts") => {
     if (!file) return;
@@ -37,7 +55,10 @@ export default function Import() {
     if (leadPreview.length === 0) return;
     setImportingLeads(true);
     try {
-      const result = await supabaseDataGateway.importLeads(leadPreview);
+      const latestSettings = await coldEmailActions.load();
+      setColdEmailSettings(latestSettings);
+      const leads = buildImportedLeads(companyRows, contactRows, latestSettings);
+      const result = await supabaseDataGateway.importLeads(leads);
       toast.success(`${result.imported} lead(s) importé(s). Les doublons ont été mis à jour.`);
       setCompanyFile(null);
       setContactFile(null);

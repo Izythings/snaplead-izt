@@ -1,13 +1,13 @@
 import { adminClient, authenticatedAccount, AuthenticationError, callClaude, extractJson } from "../_shared/api.ts";
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { hasHighActivity } from "../_shared/digital.ts";
-import { karayCrmContext } from "../_shared/sales-context.ts";
+import { getSalesContext } from "../_shared/sales-context.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = adminClient();
   try {
-    const { accountOwnerId } = await authenticatedAccount(req, supabase);
+    const { accountOwnerId, userId } = await authenticatedAccount(req, supabase);
 
     const since = new Date();
     since.setHours(0, 0, 0, 0);
@@ -26,9 +26,10 @@ Deno.serve(async (req) => {
       }))
       .sort((a: any, b: any) => Number(b.high_activity) - Number(a.high_activity));
 
-    const prompt = `${karayCrmContext}
+    const { identity, context: salesContext } = await getSalesContext(supabase, userId);
+    const prompt = `${salesContext}
 
-B2B sales assistant. Given terrain leads + confreres, generate attack plan for tomorrow for Pablo/KarayCRM.
+B2B sales assistant. Given terrain leads + confreres, generate an attack plan for tomorrow for ${identity.display_name || "the seller"}/KarayCRM.
 Keep the two qualification axes separate:
 - high_activity controls priority. A lead is high activity when it has at least 15 Google reviews or at least 3 employees.
 - digital_segment and suggested_offer control the sales angle, not priority.

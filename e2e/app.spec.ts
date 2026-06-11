@@ -142,8 +142,25 @@ test("settings page can prefill webhook presets", async ({ page }) => {
   await expect(page.getByPlaceholder("URL webhook")).toHaveValue("https://hooks.zapier.com/hooks/catch/...");
 });
 
+test("cold email settings preview renders the sample lead and current time window", async ({ page }) => {
+  await page.goto("/settings/cold-email");
+
+  await expect(page.getByRole("heading", { name: "Cold email", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Identité vendeur" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Template cold email J0 (CSV)" })).toBeVisible();
+  await page.getByRole("button", { name: "Aperçu" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Aperçu du cold email J0" });
+  await expect(dialog).toContainText("Bonsignore · Frigo Antilles · Fort-de-France");
+  await expect(dialog).toContainText("Bonjour M. Bonsignore,");
+  const expectedWindow = [1, 2, 3].includes(new Date().getDay())
+    ? "fin de semaine"
+    : "début de semaine prochaine";
+  await expect(dialog).toContainText(expectedWindow);
+});
+
 test("core routes do not overflow the viewport horizontally", async ({ page }) => {
-  for (const route of ["/", "/import", "/captures", "/leads", "/plan"]) {
+  for (const route of ["/", "/import", "/captures", "/leads", "/plan", "/settings/cold-email"]) {
     await page.goto(route);
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,

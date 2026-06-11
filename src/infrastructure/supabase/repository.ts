@@ -1,6 +1,7 @@
 import type { DataGateway, LeadDetailData, WebhookConfigInput, WebhookSettingsData } from "../../application/ports/dataGateway";
 import { CaptureUploadError } from "../../application/services/importCapture";
 import type { AccountAccess, Capture, Lead, LeadWithCapture, Plan, WebhookConfig, WebhookLog } from "../../domain/shared/types";
+import type { EmailTemplate, EmailTemplateInput, EmailTemplateKey, SalesIdentity, SalesIdentityInput } from "../../domain/email/settings";
 import { supabase } from "./client";
 
 const LEAD_WITH_CAPTURE_SELECT = "*, captures(*)";
@@ -200,6 +201,53 @@ export const revokeAccountInvite = async (inviteId: string) => {
   if (error) throw error;
 };
 
+const getCurrentUserId = async () => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw error ?? new Error("Authentication required");
+  return data.user.id;
+};
+
+export const getSalesIdentity = async () => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.from("sales_identity").select("*").eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data as SalesIdentity | null;
+};
+
+export const saveSalesIdentity = async (payload: SalesIdentityInput) => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from("sales_identity")
+    .upsert({ ...payload, user_id: userId }, { onConflict: "user_id" })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as SalesIdentity;
+};
+
+export const getEmailTemplate = async (key: EmailTemplateKey) => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from("email_templates")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw error;
+  return data as EmailTemplate | null;
+};
+
+export const saveEmailTemplate = async (payload: EmailTemplateInput) => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from("email_templates")
+    .upsert({ ...payload, user_id: userId }, { onConflict: "user_id,key" })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as EmailTemplate;
+};
+
 export const supabaseDataGateway: DataGateway = {
   fetchCaptures,
   fetchLeads,
@@ -222,4 +270,8 @@ export const supabaseDataGateway: DataGateway = {
   inviteAccountMember,
   removeAccountMember,
   revokeAccountInvite,
+  getSalesIdentity,
+  saveSalesIdentity,
+  getEmailTemplate,
+  saveEmailTemplate,
 };
